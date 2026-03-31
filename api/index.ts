@@ -138,7 +138,11 @@ app.post("/webhook", async (c) => {
 app.get("/diag", async (c) => {
   try {
     // Test with 'pg' driver explicitly FIRST
-    const pgConnStr = (process.env.DATABASE_URL || "").trim();
+    const rawConnStr = (process.env.DATABASE_URL || "").trim();
+    const pgConnStr = rawConnStr
+      .replace(/[?&]sslmode=[^&]*/g, "")
+      .replace(/[?&]workaround=[^&]*/g, "");
+      
     let pgStatus = "not_tested";
     let pgConnected = false;
     const { Client } = await import('pg');
