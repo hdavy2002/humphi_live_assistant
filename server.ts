@@ -9,7 +9,11 @@ import fs from "fs";
 import { WalletUseCase } from "./src/application/use-cases";
 import { DrizzleProfileRepository, DrizzleTransactionRepository } from "./src/infrastructure/repositories";
 
-dotenv.config();
+if (fs.existsSync(".env.local")) {
+  dotenv.config({ path: ".env.local" });
+} else {
+  dotenv.config();
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const profileRepo = new DrizzleProfileRepository();
@@ -18,15 +22,39 @@ const walletUseCase = new WalletUseCase(profileRepo, transactionRepo, stripe);
 
 const app = new Hono();
 
+// Global Error Handler for JSON APIs
+app.onError((err, c) => {
+  console.error(`[Server Error]: ${err.message}`, err);
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: err.message || "Internal Server Error" }, 500);
+  }
+  return c.text("Internal Server Error", 500);
+});
+
+// Custom 404 for APIs to prevent falling back to HTML
+app.notFound((c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: `Not Found: ${c.req.method} ${c.req.path}` }, 404);
+  }
+  // Let Vite or static server handle non-API 404s (SPA fallback)
+});
+
 // API Routes
 app.post("/api/create-checkout-session", async (c) => {
-  const { amount, userId } = await c.req.json();
   const appUrl = process.env.APP_URL || "http://localhost:3000";
   
   try {
+    const body = await c.req.json().catch(() => ({}));
+    const { amount, userId } = body;
+    
+    if (!amount || !userId) {
+      return c.json({ error: "Missing amount or userId" }, 400);
+    }
+
     const sessionId = await walletUseCase.createCheckoutSession(amount, userId, appUrl);
     return c.json({ id: sessionId });
   } catch (err: any) {
+    console.error("[Checkout Session Error]:", err);
     return c.json({ error: err.message }, 400);
   }
 });
@@ -52,8 +80,13 @@ if (process.env.NODE_ENV !== "production") {
   });
   
   app.use("*", async (c, next) => {
+    // Skip Vite for API requests that didn't match
+    if (c.req.path.startsWith("/api/")) {
+      return next();
+    }
+    
     const req = c.req.raw;
-    const res = (c.env as any)?.outgoing || (c as any).res; // Hono node-server context
+    const res = (c.env as any)?.outgoing || (c as any).res;
     
     return new Promise((resolve) => {
       vite.middlewares(req as any, res as any, () => {
@@ -64,7 +97,10 @@ if (process.env.NODE_ENV !== "production") {
 } else {
   const distPath = path.join(process.cwd(), "dist");
   app.use("/assets/*", serveStatic({ root: distPath }));
-  app.get("*", async (c) => {
+  app.get("*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) {
+      return next();
+    }
     const html = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
     return c.html(html);
   });
