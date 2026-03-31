@@ -13,6 +13,8 @@ import { DrizzleProfileRepository, DrizzleTransactionRepository } from "./src/in
 import { Redis } from '@upstash/redis';
 // Using any for mem0 as it might not have proper types or might be a CommonJS module
 import { MemoryClient } from 'mem0ai';
+import { db } from "./src/infrastructure/db/client.js";
+import { sql } from "drizzle-orm";
 
 let redis: Redis | null = null;
 if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
@@ -104,6 +106,35 @@ app.post("/api/webhook", async (c) => {
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return c.json({ error: err.message }, 400);
+  }
+});
+
+app.get("/api/diag", async (c) => {
+  try {
+    const profileRepo = new DrizzleProfileRepository();
+    const transactionRepo = new DrizzleTransactionRepository();
+    const walletUseCase = new WalletUseCase(profileRepo, transactionRepo, stripe);
+    
+    // Check if the column exists by running a raw query
+    const dbRes = await db.execute(sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
+    `);
+    
+    const dbUrl = process.env.DATABASE_URL || "MISSING";
+    const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");
+    
+    return c.json({
+      status: "online",
+      database: maskedUrl,
+      columnExists: dbRes.length > 0,
+      columnsFound: dbRes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error("DIAG ERROR:", err);
+    return c.json({ error: err.message, stack: err.stack, dbUrlSet: !!process.env.DATABASE_URL }, 500);
   }
 });
 

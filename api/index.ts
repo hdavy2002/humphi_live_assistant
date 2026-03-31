@@ -4,6 +4,8 @@ import Stripe from "stripe";
 import { WalletUseCase } from "../src/application/use-cases.js";
 import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories.js";
 import { Redis } from '@upstash/redis';
+import { db } from "../src/infrastructure/db/client.js";
+import { sql } from "drizzle-orm";
 // Using any for mem0 as it might not have proper types or might be a CommonJS module
 import { MemoryClient } from 'mem0ai';
 
@@ -130,6 +132,31 @@ app.post("/webhook", async (c) => {
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return c.json({ error: err.message }, 400);
+  }
+});
+
+app.get("/diag", async (c) => {
+  try {
+    const dbRes = await db.execute(sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
+    `);
+    
+    const dbUrl = process.env.DATABASE_URL || "MISSING";
+    const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");
+    
+    return c.json({
+      status: "online",
+      environment: "vercel",
+      database: maskedUrl,
+      columnExists: dbRes.length > 0,
+      columnsFound: dbRes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error("DIAG ERROR:", err);
+    return c.json({ error: err.message, stack: err.stack, dbUrlSet: !!process.env.DATABASE_URL }, 500);
   }
 });
 
