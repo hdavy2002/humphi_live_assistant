@@ -16,6 +16,7 @@ const app = new Hono().basePath("/api");
 
 app.post("/create-checkout-session", async (c) => {
   const { amount, userId } = await c.req.json();
+  console.log("Create checkout session request:", { amount, userId });
   
   // Robust URL detection for Vercel
   let appUrl = process.env.APP_URL;
@@ -26,9 +27,12 @@ app.post("/create-checkout-session", async (c) => {
   }
   
   try {
+    console.log("Calling walletUseCase.createCheckoutSession with appUrl:", appUrl);
     const sessionId = await walletUseCase.createCheckoutSession(amount, userId, appUrl);
+    console.log("Checkout session created:", sessionId);
     return c.json({ id: sessionId });
   } catch (err: any) {
+    console.error("Error creating checkout session:", err);
     return c.json({ error: err.message }, 400);
   }
 });
