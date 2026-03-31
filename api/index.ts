@@ -138,10 +138,7 @@ app.post("/webhook", async (c) => {
 app.get("/diag", async (c) => {
   try {
     // Test with 'pg' driver explicitly FIRST
-    // Strip sslmode from URL - it overrides rejectUnauthorized:false if present
-    const pgConnStr = (process.env.DATABASE_URL || "").trim()
-      .replace(/[?&]sslmode=[^&]*/g, "")
-      .replace(/[?&]workaround=[^&]*/g, "");
+    const pgConnStr = (process.env.DATABASE_URL || "").trim();
     let pgStatus = "not_tested";
     let pgConnected = false;
     const { Client } = await import('pg');
