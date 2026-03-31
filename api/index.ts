@@ -145,6 +145,19 @@ app.get("/diag", async (c) => {
 
     const selectOne = await db.execute(sql`SELECT 1 as connected`);
     
+    // NEW: Test with 'pg' driver explicitly
+    let pgStatus = "not_tested";
+    const { Client } = await import('pg');
+    const pgClient = new Client({ connectionString: process.env.DATABASE_URL });
+    try {
+      await pgClient.connect();
+      const res = await pgClient.query('SELECT 1 as connected');
+      pgStatus = "success";
+      await pgClient.end();
+    } catch (err: any) {
+      pgStatus = `failed: ${err.message}`;
+    }
+
     const dbUrl = process.env.DATABASE_URL || "MISSING";
     const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");
     
@@ -154,6 +167,8 @@ app.get("/diag", async (c) => {
       database: maskedUrl,
       columnExists: dbRes.length > 0,
       columnsFound: dbRes,
+      drizzleStatus: selectOne.length > 0 ? "success" : "failed",
+      pgDriverStatus: pgStatus,
       timestamp: new Date().toISOString()
     });
   } catch (err: any) {
