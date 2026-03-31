@@ -1,4 +1,4 @@
-import { ProfileRepository, TransactionRepository } from "../domain/repositories";
+import { ProfileRepository, TransactionRepository } from "../domain/repositories.js";
 import Stripe from "stripe";
 
 export class WalletUseCase {

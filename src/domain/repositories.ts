@@ -1,4 +1,4 @@
-import { Profile, Transaction } from "./entities";
+import { Profile, Transaction } from "./entities.js";
 
 export interface ProfileRepository {
   getById(id: string): Promise<Profile | null>;

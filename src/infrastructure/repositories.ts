@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { db } from "./db/client";
-import { profiles, transactions } from "./db/schema";
-import { Profile, Transaction } from "../domain/entities";
-import { ProfileRepository, TransactionRepository } from "../domain/repositories";
+import { db } from "./db/client.js";
+import { profiles, transactions } from "./db/schema.js";
+import { Profile, Transaction } from "../domain/entities.js";
+import { ProfileRepository, TransactionRepository } from "../domain/repositories.js";
 
 export class DrizzleProfileRepository implements ProfileRepository {
   async getById(id: string): Promise<Profile | null> {

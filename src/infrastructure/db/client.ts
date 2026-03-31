@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
+import * as schema from "./schema.js";
 
 // On Vercel, env vars are injected natively — no dotenv needed.
 // Using empty string fallback so the function doesn't crash on startup;

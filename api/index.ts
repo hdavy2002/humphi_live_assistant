@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import Stripe from "stripe";
-import { WalletUseCase } from "../src/application/use-cases";
-import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories";
+import { WalletUseCase } from "../src/application/use-cases.js";
+import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories.js";
 import { Redis } from '@upstash/redis';
 // Using any for mem0 as it might not have proper types or might be a CommonJS module
 const { MemoryClient } = require('mem0ai');
