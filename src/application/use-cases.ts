@@ -158,4 +158,24 @@ export class WalletUseCase {
 
     throw new Error("Payment not completed");
   }
+
+  async handleWebhookEvent(event: Stripe.Event) {
+    console.log("Processing Stripe Webhook Event:", event.type);
+    
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        return await this.verifySession(session.id);
+      }
+      
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        return await this.verifyPaymentIntent(paymentIntent.id);
+      }
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+        return { success: true, handled: false };
+    }
+  }
 }

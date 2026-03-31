@@ -105,6 +105,34 @@ app.get("/verify-session", async (c) => {
   }
 });
 
+app.post("/webhook", async (c) => {
+  const sig = c.req.header("stripe-signature");
+  if (!sig) return c.json({ error: "Missing signature" }, 400);
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET is not set");
+    return c.json({ error: "Webhook secret not configured" }, 500);
+  }
+
+  try {
+    const rawBody = await c.req.text();
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+    const event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    
+    // We recreate the use case here to ensure fresh repos, consistent with other routes
+    const profileRepo = new DrizzleProfileRepository();
+    const transactionRepo = new DrizzleTransactionRepository();
+    const walletUseCase = new WalletUseCase(profileRepo, transactionRepo, stripe);
+    
+    const result = await walletUseCase.handleWebhookEvent(event);
+    return c.json(result);
+  } catch (err: any) {
+    console.error(`Webhook Error: ${err.message}`);
+    return c.json({ error: err.message }, 400);
+  }
+});
+
 app.get("/session/init", async (c) => {
   const userId = c.req.query("userId");
   if (!userId) return c.json({ error: "Missing userId" }, 400);
