@@ -64,16 +64,6 @@ function CheckoutForm({ clientSecret, paymentIntentId, onCancel, onSuccess }: {
       <div className="bg-white/5 border border-white/10 p-4 rounded-3xl">
         <PaymentElement options={{ 
           layout: 'tabs',
-          theme: 'night',
-          variables: {
-            colorPrimary: '#3b82f6',
-            colorBackground: '#1a1a1a',
-            colorText: '#ffffff',
-            colorDanger: '#ef4444',
-            fontFamily: 'system-ui, sans-serif',
-            spacingUnit: '4px',
-            borderRadius: '12px',
-          }
         }} />
       </div>
       
@@ -298,7 +288,18 @@ export default function Wallet() {
 
               <Elements stripe={stripePromise} options={{ 
                 clientSecret: checkoutData.clientSecret,
-                appearance: { theme: 'night' } 
+                appearance: { 
+                  theme: 'night',
+                  variables: {
+                    colorPrimary: '#3b82f6',
+                    colorBackground: '#1a1a1a',
+                    colorText: '#ffffff',
+                    colorDanger: '#ef4444',
+                    fontFamily: 'system-ui, sans-serif',
+                    spacingUnit: '4px',
+                    borderRadius: '12px',
+                  }
+                } 
               }}>
                 <CheckoutForm 
                   clientSecret={checkoutData.clientSecret} 
