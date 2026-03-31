@@ -153,6 +153,11 @@ export default function App() {
   const screenIntervalRef = useRef<number | null>(null);
   const micTestIntervalRef = useRef<number | null>(null);
 
+  const previousHandleRef = useRef<string | null>(null);
+  const transcriptRef = useRef<string>("");
+  const longTermMemoryRef = useRef<any[]>([]);
+  const isGoAwayReconnectingRef = useRef<boolean>(false);
+
   useEffect(() => {
     getDevices();
     return () => {
@@ -190,8 +195,8 @@ export default function App() {
     }]);
   };
 
-  const startSession = async () => {
-    if (isConnecting || isConnected) return;
+  const startSession = async (isResume = false) => {
+    if ((isConnecting || isConnected) && !isResume) return;
 
     // Check wallet balance before starting
     if (!profile || (profile.wallet_balance || 0) <= 0) {
@@ -200,17 +205,37 @@ export default function App() {
       return;
     }
 
-    setIsConnecting(true);
-    setTokenUsage({ input: 0, output: 0, total: 0 }); // Reset usage for new session
-    addLog('info', 'Starting Gemini Live session...');
+    if (!isResume) {
+      setIsConnecting(true);
+      setTokenUsage({ input: 0, output: 0, total: 0 }); // Reset usage for new session
+      addLog('info', 'Starting Gemini Live session...');
+      
+      try {
+        const res = await fetch(`/api/session/init?userId=${session?.user?.id || ''}`);
+        if (res.ok) {
+          const data = await res.json();
+          previousHandleRef.current = data.previousHandle || null;
+          longTermMemoryRef.current = data.longTermMemory || [];
+        }
+      } catch (err) {
+        addLog('error', 'Failed to fetch session context', err);
+      }
+    } else {
+      addLog('info', 'Resuming session rapidly...');
+    }
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
       
-      audioPlayerRef.current = new AudioPlayer();
-      // No init needed
+      if (!isResume) {
+        audioPlayerRef.current = new AudioPlayer();
+      }
 
-      const session = await ai.live.connect({
+      const memoryLines = longTermMemoryRef.current.length > 0
+        ? longTermMemoryRef.current.map(m => `- ${m.memory}`).join('\n')
+        : 'First session with this user.';
+
+      const geminiSession = await ai.live.connect({
         model: MODEL_NAME,
         config: {
           responseModalities: [Modality.AUDIO],
@@ -221,38 +246,54 @@ export default function App() {
               }
             }
           },
-          systemInstruction: `${systemPrompt} 
+          contextWindowCompression: {
+            slidingWindow: {}
+          },
+          ...(previousHandleRef.current ? { sessionResumption: { handle: previousHandleRef.current } } : {}),
+          systemInstruction: {
+            parts: [{
+              text: `${systemPrompt} 
           IMPORTANT: You are a ${VOICE_GENDERS[selectedVoice] || 'neutral'} persona. 
           In languages like Hindi, you MUST use the ${VOICE_GENDERS[selectedVoice] || 'neutral'} gender for yourself (e.g., use feminine verb endings if you are feminine).
-          You MUST speak to me in ${selectedLanguage} with a ${selectedAccent} accent.`
+          You MUST speak to me in ${selectedLanguage} with a ${selectedAccent} accent.
+          
+          WHAT YOU KNOW ABOUT THIS USER FROM PAST SESSIONS:
+          ${memoryLines}`
+            }]
+          }
         },
         callbacks: {
           onopen: () => {
             setIsConnected(true);
             connectedRef.current = true;
             setIsConnecting(false);
+            isGoAwayReconnectingRef.current = false;
             addLog('info', 'Connected to Gemini Live');
             
             // Auto-enable mic when session starts
-            setIsMicOn(true);
-            startAudioCapture();
+            if (!isResume) {
+              setIsMicOn(true);
+              startAudioCapture();
+            }
           },
           onmessage: (message: LiveServerMessage) => {
             handleServerMessage(message);
           },
           onclose: () => {
+            if (isGoAwayReconnectingRef.current) return;
             connectedRef.current = false;
             stopSession();
             addLog('info', 'Session closed');
           },
           onerror: (err) => {
+            if (isGoAwayReconnectingRef.current) return;
             addLog('error', 'Session error', err);
             stopSession();
           }
         }
       });
 
-      sessionRef.current = session;
+      sessionRef.current = geminiSession;
     } catch (err) {
       addLog('error', 'Failed to connect', err);
       setIsConnecting(false);
@@ -284,14 +325,42 @@ export default function App() {
       audioPlayerRef.current = null;
     }
 
+    // Save state to backend
+    if (transcriptRef.current && session?.user?.id && !isGoAwayReconnectingRef.current) {
+      fetch('/api/session/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: session.user.id,
+          newHandle: previousHandleRef.current,
+          transcript: transcriptRef.current
+        })
+      }).catch(err => addLog('error', 'Failed to save session state', err));
+      transcriptRef.current = "";
+    }
+
     addLog('info', 'Session ended');
   };
 
-  const handleServerMessage = async (message: LiveServerMessage) => {
+  const handleServerMessage = async (msg: LiveServerMessage) => {
+    const message = msg as any;
+
+    if (message.sessionResumptionUpdate?.resumable && message.sessionResumptionUpdate.newHandle) {
+      previousHandleRef.current = message.sessionResumptionUpdate.newHandle;
+      addLog('info', 'Resumption token updated');
+    }
+
+    if (message.goAway) {
+      addLog('info', 'GoAway received — reconnecting with saved token');
+      isGoAwayReconnectingRef.current = true;
+      startSession(true);
+      return;
+    }
+
     if (message.serverContent?.modelTurn?.parts) {
       const textParts = message.serverContent.modelTurn.parts
-        .filter(p => p.text)
-        .map(p => p.text)
+        .filter((p: any) => p.text)
+        .map((p: any) => p.text)
         .join(" ");
       
       if (textParts) {
@@ -304,7 +373,7 @@ export default function App() {
       }
 
       const audioParts = message.serverContent.modelTurn.parts
-        .filter(p => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
+        .filter((p: any) => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
       
       for (const p of audioParts) {
         if (p.inlineData && audioPlayerRef.current) {
@@ -312,18 +381,25 @@ export default function App() {
         }
       }
     }
+    
+    // Accumulate transcription for Mem0
+    if (message.serverContent?.outputTranscription?.text) {
+      const text = message.serverContent.outputTranscription.text;
+      transcriptRef.current += " " + text;
+    }
 
     if (message.serverContent?.interrupted) {
       addLog('info', 'Model interrupted');
       audioPlayerRef.current?.stop();
     }
 
-    if (message.usageMetadata) {
-      addLog('info', 'Usage update', message.usageMetadata);
+    if (message.usageMetadata || message.serverContent?.usageMetadata) {
+      const usage = message.usageMetadata || message.serverContent?.usageMetadata;
+      addLog('info', 'Usage update', usage);
       setTokenUsage(prev => ({
-        input: message.usageMetadata?.promptTokenCount || prev.input,
-        output: (message.usageMetadata as any).candidatesTokenCount || (message.usageMetadata as any).responseTokenCount || prev.output,
-        total: message.usageMetadata?.totalTokenCount || prev.total
+        input: usage?.promptTokenCount || prev.input,
+        output: usage?.candidatesTokenCount || usage?.responseTokenCount || prev.output,
+        total: usage?.totalTokenCount || prev.total
       }));
     }
   };
