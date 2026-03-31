@@ -24,19 +24,30 @@ export class DrizzleProfileRepository implements ProfileRepository {
 
 export class DrizzleTransactionRepository implements TransactionRepository {
   async getByStripeSessionId(sessionId: string): Promise<Transaction | null> {
-    const result = await db.select().from(transactions).where(eq(transactions.stripeSessionId, sessionId)).limit(1);
-    if (result.length === 0) return null;
-    const t = result[0];
-    return {
-      id: t.id,
-      userId: t.userId,
-      amount: parseFloat(t.amount),
-      type: t.type,
-      status: t.status,
-      description: t.description,
-      stripeSessionId: t.stripeSessionId,
-      createdAt: t.createdAt,
-    };
+    try {
+      const result = await db.select().from(transactions).where(eq(transactions.stripeSessionId, sessionId)).limit(1);
+      if (result.length === 0) return null;
+      const t = result[0];
+      return {
+        id: t.id,
+        userId: t.userId,
+        amount: parseFloat(t.amount),
+        type: t.type,
+        status: t.status,
+        description: t.description,
+        stripeSessionId: t.stripeSessionId,
+        createdAt: t.createdAt,
+      };
+    } catch (err: any) {
+      console.error("Repository error [getByStripeSessionId]:", err.message);
+      if (err.message?.includes("column") && err.message?.includes("stripe_session_id")) {
+        throw new Error("Missing 'stripe_session_id' column in database. Please run the SQL migration.");
+      }
+      if (err.message?.includes("connect") || err.message?.includes("timeout")) {
+        throw new Error("Database connection error. If using Supabase, ensure your DATABASE_URL uses port 6543 (Transaction Pooler).");
+      }
+      throw err;
+    }
   }
 
   async create(transaction: Partial<Transaction>): Promise<void> {
