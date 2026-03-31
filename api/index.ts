@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import Stripe from "stripe";
-import { WalletUseCase } from "@/src/application/use-cases";
-import { DrizzleProfileRepository, DrizzleTransactionRepository } from "@/src/infrastructure/repositories";
+import { WalletUseCase } from "../src/application/use-cases";
+import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories";
 
 const app = new Hono().basePath("/api");
 
