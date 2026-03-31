@@ -100,15 +100,33 @@ export default function App() {
   }, [session]);
 
   const fetchProfile = async () => {
-    const { data, error } = await supabase
+    if (!session?.user) return;
+
+    let { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
     
     if (error) {
-        console.error("Fetch profile error:", error);
+      console.error("Fetch profile error:", error);
     }
+
+    if (!data && !error) {
+      // Profile missing, create a default one
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert([{ id: session.user.id, email: session.user.email, wallet_balance: 0 }])
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error("Error creating profile:", createError);
+      } else {
+        data = newProfile;
+      }
+    }
+
     if (data) setProfile(data);
   };
 

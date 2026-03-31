@@ -29,9 +29,11 @@ export default function Wallet() {
       .from('profiles')
       .select('wallet_balance')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
+    if (error) console.error("Error fetching balance:", error);
     if (data) setBalance(data.wallet_balance);
+    else setBalance(0);
   };
 
   const verifySession = async (sessionId: string) => {
