@@ -137,27 +137,44 @@ app.post("/webhook", async (c) => {
 
 app.get("/diag", async (c) => {
   try {
-    const dbRes = await db.execute(sql`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
-    `);
-
-    const selectOne = await db.execute(sql`SELECT 1 as connected`);
-    
-    // NEW: Test with 'pg' driver explicitly
+    // 1. Test with 'pg' driver explicitly FIRST
     let pgStatus = "not_tested";
+    let pgConnected = false;
     const { Client } = await import('pg');
-    const pgClient = new Client({ connectionString: process.env.DATABASE_URL });
+    // Force SSL require for the pg driver test
+    const pgClient = new Client({ 
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    
     try {
       await pgClient.connect();
       const res = await pgClient.query('SELECT 1 as connected');
       pgStatus = "success";
+      pgConnected = true;
       await pgClient.end();
     } catch (err: any) {
       pgStatus = `failed: ${err.message}`;
     }
 
+    // 2. Test Drizzle only if pg didn't crash the whole process
+    let drizzleStatus = "pending";
+    let columnExists = false;
+    let columnsFound = [];
+    
+    try {
+      const dbRes = await db.execute(sql`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
+      `);
+      columnExists = dbRes.length > 0;
+      columnsFound = dbRes as any;
+      drizzleStatus = "success";
+    } catch (err: any) {
+      drizzleStatus = `failed: ${err.message}`;
+    }
+    
     const dbUrl = process.env.DATABASE_URL || "MISSING";
     const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");
     
@@ -165,10 +182,10 @@ app.get("/diag", async (c) => {
       status: "online",
       environment: "vercel",
       database: maskedUrl,
-      columnExists: dbRes.length > 0,
-      columnsFound: dbRes,
-      drizzleStatus: selectOne.length > 0 ? "success" : "failed",
       pgDriverStatus: pgStatus,
+      drizzleStatus: drizzleStatus,
+      columnExistsInDb: columnExists,
+      columnsFound: columnsFound,
       timestamp: new Date().toISOString()
     });
   } catch (err: any) {
