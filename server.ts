@@ -17,8 +17,8 @@ import { MemoryClient } from 'mem0ai';
 let redis: Redis | null = null;
 if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
   redis = new Redis({
-    url: process.env.UPSTASH_REDIS_URL,
-    token: process.env.UPSTASH_REDIS_TOKEN,
+    url: process.env.UPSTASH_REDIS_URL.trim(),
+    token: process.env.UPSTASH_REDIS_TOKEN.trim(),
   });
 }
 
