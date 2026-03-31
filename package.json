@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
-    "build": "vite build",
+    "build": "vite build && npm run build:api",
+    "build:api": "npx esbuild api/index.ts --bundle --platform=node --outfile=dist/api/index.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -22,6 +23,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.2",
+    "esbuild": "^0.27.4",
     "express": "^4.22.1",
     "hono": "^4.12.9",
     "lucide-react": "^0.546.0",

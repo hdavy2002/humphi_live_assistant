@@ -1,22 +1,28 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import Stripe from "stripe";
-import { WalletUseCase } from "../src/application/use-cases";
-import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-const profileRepo = new DrizzleProfileRepository();
-const transactionRepo = new DrizzleTransactionRepository();
-const walletUseCase = new WalletUseCase(profileRepo, transactionRepo, stripe);
+import { WalletUseCase } from "@/src/application/use-cases";
+import { DrizzleProfileRepository, DrizzleTransactionRepository } from "@/src/infrastructure/repositories";
 
 const app = new Hono().basePath("/api");
+
+function getWalletUseCase() {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+  const profileRepo = new DrizzleProfileRepository();
+  const transactionRepo = new DrizzleTransactionRepository();
+  return new WalletUseCase(profileRepo, transactionRepo, stripe);
+}
+
+app.onError((err, c) => {
+  console.error("Global Error Handler:", err);
+  return c.json({ error: err.message, stack: process.env.NODE_ENV === 'development' ? err.stack : undefined }, 500);
+});
 
 app.post("/create-checkout-session", async (c) => {
   const { amount, userId } = await c.req.json();
   console.log("Create checkout session request:", { amount, userId });
+  
+  const walletUseCase = getWalletUseCase();
   
   // Robust URL detection for Vercel
   let appUrl = process.env.APP_URL;
@@ -43,6 +49,7 @@ app.get("/verify-session", async (c) => {
   if (!sessionId) return c.json({ error: "Missing session ID" }, 400);
 
   try {
+    const walletUseCase = getWalletUseCase();
     const result = await walletUseCase.verifySession(sessionId);
     return c.json(result);
   } catch (err: any) {
