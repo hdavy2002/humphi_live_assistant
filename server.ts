@@ -21,7 +21,14 @@ const app = new Hono();
 // API Routes
 app.post("/api/create-checkout-session", async (c) => {
   const { amount, userId } = await c.req.json();
-  const appUrl = process.env.APP_URL || "http://localhost:3000";
+  
+  // Robust URL detection
+  let appUrl = process.env.APP_URL;
+  if (!appUrl) {
+    const host = c.req.header("host");
+    const protocol = host?.includes("localhost") ? "http" : "https";
+    appUrl = `${protocol}://${host}`;
+  }
   
   try {
     const sessionId = await walletUseCase.createCheckoutSession(amount, userId, appUrl);
