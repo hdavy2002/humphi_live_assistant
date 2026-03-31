@@ -142,6 +142,8 @@ app.get("/diag", async (c) => {
       FROM information_schema.columns 
       WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
     `);
+
+    const selectOne = await db.execute(sql`SELECT 1 as connected`);
     
     const dbUrl = process.env.DATABASE_URL || "MISSING";
     const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");

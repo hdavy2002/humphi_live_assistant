@@ -14,8 +14,9 @@ if (connectionString && !connectionString.includes("sslmode=")) {
 // but we MUST disable prepared statements if using the Supabase Transaction Pooler (port 6543)
 const client = postgres(connectionString, { 
   prepare: false, // MANDATORY for Supabase transaction pooler
-  connect_timeout: 10, // 10 seconds
-  idle_timeout: 5, // Close idle connections after 10 seconds
+  ssl: 'require', // Explicitly require SSL for Supabase
+  connect_timeout: 15, // 15 seconds
+  idle_timeout: 10, // Close idle connections after 10 seconds
   max: 1 // Only 1 connection per serverless function instance to avoid saturating pool
 });
 
