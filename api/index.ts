@@ -64,6 +64,30 @@ app.post("/create-checkout-session", async (c) => {
   }
 });
 
+app.post("/create-payment-intent", async (c) => {
+  const { amount, userId } = await c.req.json();
+  const walletUseCase = getWalletUseCase();
+
+  try {
+    const result = await walletUseCase.createPaymentIntent(amount, userId);
+    return c.json(result);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+app.post("/verify-payment-intent", async (c) => {
+  const { paymentIntentId } = await c.req.json();
+  const walletUseCase = getWalletUseCase();
+
+  try {
+    const result = await walletUseCase.verifyPaymentIntent(paymentIntentId);
+    return c.json(result);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
 app.get("/verify-session", async (c) => {
   const sessionId = c.req.query("sessionId");
   
