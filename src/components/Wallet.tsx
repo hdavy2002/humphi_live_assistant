@@ -38,12 +38,6 @@ export default function Wallet() {
     setVerifying(true);
     try {
       const response = await fetch(`/api/verify-session?sessionId=${sessionId}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Verification failed (${response.status}): ${errorText.substring(0, 100)}`);
-      }
-
       const data = await response.json();
       if (data.success) {
         await fetchBalance();
@@ -72,24 +66,11 @@ export default function Wallet() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      console.log('Creating checkout session for user:', user.id, 'amount:', numAmount);
-      
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: numAmount, userId: user.id }),
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          throw new Error(`Server error (${response.status}): ${errorText.substring(0, 100)}`);
-        }
-        throw new Error(errorData.error || 'Failed to create checkout session');
-      }
 
       const session = await response.json();
       if (session.error) throw new Error(session.error);
