@@ -139,10 +139,14 @@ app.get("/diag", async (c) => {
   try {
     // Test with 'pg' driver explicitly FIRST
     const rawConnStr = (process.env.DATABASE_URL || "").trim();
-    const pgConnStr = rawConnStr
-      .replace(/[?&]sslmode=[^&]*/g, "")
-      .replace(/[?&]workaround=[^&]*/g, "");
-      
+    let pgConnStr = rawConnStr;
+    try {
+      const url = new URL(rawConnStr);
+      url.searchParams.delete('sslmode');
+      url.searchParams.delete('workaround');
+      pgConnStr = url.toString();
+    } catch (e) {}
+
     let pgStatus = "not_tested";
     let pgConnected = false;
     const { Client } = await import('pg');
