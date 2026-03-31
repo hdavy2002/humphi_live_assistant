@@ -63,22 +63,52 @@ export class WalletUseCase {
   }
 
   async verifyPaymentIntent(paymentIntentId: string) {
-    const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    if (!paymentIntentId) throw new Error("Missing payment intent ID");
+
+    let paymentIntent;
+    try {
+      paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    } catch (err: any) {
+      console.error("Stripe Retrieval Error:", err);
+      throw new Error(`Failed to retrieve payment info: ${err.message}`);
+    }
     
-    if (paymentIntent.status === "succeeded" && paymentIntent.metadata) {
-      const userId = paymentIntent.metadata.userId;
-      const amount = parseFloat(paymentIntent.metadata.amount);
+    if (paymentIntent.status !== "succeeded") {
+      throw new Error(`Payment is not yet successful. Status: ${paymentIntent.status}`);
+    }
 
-      // Check if this payment was already processed
-      const existingTx = await this.transactionRepo.getByStripeSessionId(paymentIntentId);
-      if (existingTx) {
-        return { success: true, alreadyProcessed: true };
+    if (!paymentIntent.metadata || !paymentIntent.metadata.userId || !paymentIntent.metadata.amount) {
+      console.error("Missing Metadata in PaymentIntent:", paymentIntent.id);
+      throw new Error("Invalid payment metadata. Please contact support.");
+    }
+
+    const userId = paymentIntent.metadata.userId;
+    const amount = parseFloat(paymentIntent.metadata.amount);
+
+    // Check if this payment was already processed
+    let existingTx;
+    try {
+      existingTx = await this.transactionRepo.getByStripeSessionId(paymentIntentId);
+    } catch (err: any) {
+      console.error("Database Query Error (getByStripeSessionId):", err);
+      // If the column is missing, this will fail. We want a clear error.
+      if (err.message?.includes("column") && err.message?.includes("stripe_session_id")) {
+        throw new Error("Database schema out of date. Please run the SQL migration for 'stripe_session_id'.");
       }
+      throw new Error(`Database error during verification: ${err.message}`);
+    }
 
+    if (existingTx) {
+      return { success: true, alreadyProcessed: true };
+    }
+
+    try {
       const profile = await this.profileRepo.getById(userId);
-      if (!profile) throw new Error("Profile not found");
+      if (!profile) throw new Error("User profile not found. Are you signed in correctly?");
 
       const newBalance = profile.walletBalance + amount;
+      
+      // Atomic Update (ideally this should be in a transaction, but we'll stick to sequential for now as per current pattern)
       await this.profileRepo.updateBalance(userId, newBalance);
 
       await this.transactionRepo.create({
@@ -86,13 +116,15 @@ export class WalletUseCase {
         amount,
         type: "topup",
         status: "completed",
-        stripeSessionId: paymentIntentId, // Using the PI ID as the session ID mapping
+        stripeSessionId: paymentIntentId,
+        description: `Stripe Top-up: ${paymentIntentId}`,
       });
 
       return { success: true, newBalance };
+    } catch (err: any) {
+      console.error("Balance Update Error:", err);
+      throw new Error(`Failed to update balance: ${err.message}`);
     }
-
-    throw new Error(`Payment status: ${paymentIntent.status}`);
   }
 
   async verifySession(sessionId: string) {

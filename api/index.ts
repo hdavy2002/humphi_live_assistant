@@ -78,12 +78,15 @@ app.post("/create-payment-intent", async (c) => {
 
 app.post("/verify-payment-intent", async (c) => {
   const { paymentIntentId } = await c.req.json();
+  console.log("Verify payment intent request:", { paymentIntentId });
   const walletUseCase = getWalletUseCase();
 
   try {
     const result = await walletUseCase.verifyPaymentIntent(paymentIntentId);
+    console.log("Verify payment intent result:", result);
     return c.json(result);
   } catch (err: any) {
+    console.error("Verify payment intent error:", err.message);
     return c.json({ error: err.message }, 400);
   }
 });

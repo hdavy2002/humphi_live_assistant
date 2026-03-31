@@ -46,10 +46,12 @@ function CheckoutForm({ clientSecret, paymentIntentId, onCancel, onSuccess }: {
           body: JSON.stringify({ paymentIntentId }),
         });
         const data = await response.json();
-        if (data.success) {
+        if (!response.ok || data.error) {
+          setError(data.error || `Verification failed (${response.status})`);
+        } else if (data.success) {
           onSuccess(data.newBalance);
         } else {
-          setError(data.error);
+          setError('Unexpected response from server.');
         }
       } catch (err: any) {
         setError("Payment confirmed but balance update failed. Please contact support.");
