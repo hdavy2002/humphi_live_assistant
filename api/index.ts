@@ -5,7 +5,7 @@ import { WalletUseCase } from "../src/application/use-cases.js";
 import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories.js";
 import { Redis } from '@upstash/redis';
 // Using any for mem0 as it might not have proper types or might be a CommonJS module
-const { MemoryClient } = require('mem0ai');
+import { MemoryClient } from 'mem0ai';
 
 let redis: Redis | null = null;
 if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
