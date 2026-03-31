@@ -28,8 +28,13 @@ app.post("/create-checkout-session", async (c) => {
   let appUrl = process.env.APP_URL;
   if (!appUrl) {
     const host = c.req.header("host");
-    const protocol = host?.includes("localhost") ? "http" : "https";
-    appUrl = `${protocol}://${host}`;
+    if (host) {
+      const protocol = host.includes("localhost") ? "http" : "https";
+      appUrl = `${protocol}://${host}`;
+    } else {
+      // Fallback to a default if host is missing
+      appUrl = "https://humphi-live-assistant.vercel.app";
+    }
   }
   
   try {

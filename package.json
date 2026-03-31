@@ -7,7 +7,7 @@
     "dev": "tsx server.ts",
     "start": "node server.ts",
     "build": "vite build && npm run build:api",
-    "build:api": "npx esbuild api/index.ts --bundle --platform=node --outfile=dist/api/index.js",
+    "build:api": "npx esbuild api/index.ts --bundle --platform=node --outfile=api/index.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

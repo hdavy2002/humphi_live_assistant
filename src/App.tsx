@@ -106,6 +106,9 @@ export default function App() {
       .eq('id', session.user.id)
       .single();
     
+    if (error) {
+        console.error("Fetch profile error:", error);
+    }
     if (data) setProfile(data);
   };
 
