@@ -2,13 +2,11 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
 
-// Normalize connection string for Supabase / Vercel
-let connectionString = (process.env.DATABASE_URL || "").trim();
-
-// Ensure sslmode=require is present for Supabase, but only if it's not already there
-if (connectionString && !connectionString.includes("sslmode=")) {
-  connectionString += (connectionString.includes("?") ? "&" : "?") + "sslmode=require";
-}
+// Normalize connection string - strip sslmode from URL so our explicit ssl option takes full control.
+// If sslmode=require is in the URL it overrides rejectUnauthorized:false causing cert errors.
+let connectionString = (process.env.DATABASE_URL || "").trim()
+  .replace(/[?&]sslmode=[^&]*/g, "") // remove sslmode param
+  .replace(/[?&]workaround=[^&]*/g, ""); // remove vercel workaround param (not a valid postgres param)
 
 // In serverless environments, we create a single, shared client
 // but we MUST disable prepared statements if using the Supabase Transaction Pooler (port 6543)
