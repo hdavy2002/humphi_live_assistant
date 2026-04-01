@@ -29,14 +29,40 @@ export class DrizzleProfileRepository implements ProfileRepository {
   }
 
   async create(profile: Partial<Profile>): Promise<void> {
-    await db.insert(profiles).values({
-      id: profile.id!,
-      email: profile.email || "",
-    });
+    try {
+      await db.insert(profiles).values({
+        id: profile.id!,
+        email: profile.email || "",
+      });
+    } catch (err: any) {
+      if (!err.message?.includes("duplicate key")) {
+        throw err;
+      }
+    }
+
+    try {
+      await db.insert(wallets).values({
+        userId: profile.id!,
+        balance: "0",
+      });
+    } catch (err: any) {
+      if (!err.message?.includes("duplicate key")) {
+        throw err;
+      }
+    }
   }
 
   async updateBalance(id: string, newBalance: number): Promise<void> {
-    await db.update(wallets).set({ balance: newBalance.toString() }).where(eq(wallets.userId, id));
+    const existing = await db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
+    if (existing.length === 0) {
+      try {
+        await db.insert(wallets).values({ userId: id, balance: newBalance.toString() });
+      } catch (e: any) {
+        console.error("Failed to auto-heal wallet in updateBalance:", e.message);
+      }
+    } else {
+      await db.update(wallets).set({ balance: newBalance.toString() }).where(eq(wallets.userId, id));
+    }
   }
 }
 
@@ -104,7 +130,18 @@ export class DrizzleTransactionRepository implements TransactionRepository {
       const metadata = transaction.metadata as any;
       const userId = metadata?.userId;
       if (userId) {
-        const w = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+        let w = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+        
+        // Auto-heal databases where a profile was created but a wallet row wasn't
+        if (w.length === 0) {
+          try {
+            await db.insert(wallets).values({ userId, balance: "0" });
+            w = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+          } catch (e: any) {
+            console.error("Failed to auto-heal missing wallet row:", e.message);
+          }
+        }
+        
         if (w.length > 0) walletId = w[0].id;
       }
     }
