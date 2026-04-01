@@ -4,11 +4,17 @@ import Stripe from "stripe";
 import { WalletUseCase } from "../src/application/use-cases.js";
 import { DrizzleProfileRepository, DrizzleTransactionRepository } from "../src/infrastructure/repositories.js";
 import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 import { db } from "../src/infrastructure/db/client.js";
 import { sql } from "drizzle-orm";
-// Using any for mem0 as it might not have proper types or might be a CommonJS module
 import { MemoryClient } from 'mem0ai';
+import { serve } from "inngest/hono";
+import { inngest, provisionUser, processStripeWebhook, syncMem0 } from "./lib/inngest.js";
+import { clerkWebhooks } from "./routes/webhooks.js";
+import { neonAuthWebhooks } from "./routes/neon-auth-webhooks.js";
+import { getOrSet, invalidate, cacheKeys } from "./lib/cache.js";
 
+// --- Shared Redis instance (reused across hot invocations) ---
 let redis: Redis | null = null;
 if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
   redis = new Redis({
@@ -17,12 +23,53 @@ if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
   });
 }
 
+// --- Global Rate Limiter: 100 requests per 10 seconds per IP ---
+const ratelimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(100, "10 s"),
+      ephemeralCache: new Map(), // Reduce round-trips on warm functions
+      analytics: true,
+      prefix: "humphi:rl",
+    })
+  : null;
+
 let mem0: any = null;
 if (process.env.MEM0_API_KEY) {
   mem0 = new MemoryClient({ apiKey: process.env.MEM0_API_KEY });
 }
 
 const app = new Hono().basePath("/api");
+
+// --- Global Rate Limiting Middleware ---
+// Exclude Inngest and webhook paths (they have their own auth and must always respond quickly)
+app.use("*", async (c, next) => {
+  const path = c.req.path;
+  const isExcluded = path.includes("/inngest") || path.includes("/webhooks") || path.includes("/webhook");
+
+  if (!isExcluded && ratelimit) {
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0].trim() ?? "anonymous";
+    const { success, limit, remaining, reset } = await ratelimit.limit(ip);
+
+    if (!success) {
+      return c.json(
+        { error: "Too many requests. Please slow down.", retryAfter: Math.ceil((reset - Date.now()) / 1000) },
+        429
+      );
+    }
+    // Expose rate limit headers for good API citizens
+    c.header("X-RateLimit-Limit", String(limit));
+    c.header("X-RateLimit-Remaining", String(remaining));
+  }
+
+  await next();
+});
+
+// 1. Webhooks
+app.route("/webhooks", clerkWebhooks);
+app.route("/webhooks", neonAuthWebhooks);
+// 2. Inngest Middleware — register all background functions
+app.use("/inngest", serve({ client: inngest, functions: [provisionUser, processStripeWebhook, syncMem0] }));
 
 function getWalletUseCase() {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
@@ -120,15 +167,39 @@ app.post("/webhook", async (c) => {
   try {
     const rawBody = await c.req.text();
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+    // 1. Verify signature SYNCHRONOUSLY — always do this before anything else
     const event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
-    
-    // We recreate the use case here to ensure fresh repos, consistent with other routes
-    const profileRepo = new DrizzleProfileRepository();
-    const transactionRepo = new DrizzleTransactionRepository();
-    const walletUseCase = new WalletUseCase(profileRepo, transactionRepo, stripe);
-    
-    const result = await walletUseCase.handleWebhookEvent(event);
-    return c.json(result);
+
+    // 2. Dispatch to Inngest and return 200 immediately — no DB work on this thread
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as import("stripe").Stripe.Checkout.Session;
+      if (session.payment_status === "paid" && session.metadata?.userId) {
+        await inngest.send({
+          name: "stripe/payment.succeeded",
+          data: {
+            sessionId: session.id,
+            userId: session.metadata.userId,
+            amount: parseFloat(session.metadata.amount ?? "0"),
+          },
+        });
+      }
+    } else if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object as import("stripe").Stripe.PaymentIntent;
+      if (pi.metadata?.userId && pi.metadata?.amount) {
+        await inngest.send({
+          name: "stripe/payment.succeeded",
+          data: {
+            sessionId: pi.id,
+            userId: pi.metadata.userId,
+            amount: parseFloat(pi.metadata.amount),
+          },
+        });
+      }
+    } else {
+      console.log(`[Webhook] Unhandled event type: ${event.type}`);
+    }
+
+    return c.json({ received: true });
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return c.json({ error: err.message }, 400);
@@ -176,22 +247,46 @@ app.get("/diag", async (c) => {
         FROM information_schema.columns 
         WHERE table_name = 'transactions' AND table_schema = 'public' AND column_name = 'stripe_session_id';
       `);
-      columnExists = dbRes.length > 0;
+      columnExists = Array.isArray(dbRes) ? dbRes.length > 0 : false;
       columnsFound = dbRes as any;
       drizzleStatus = "success";
     } catch (err: any) {
       drizzleStatus = `failed: ${err.message}`;
     }
-    
+
+    // 3. Test Redis connectivity
+    let redisStatus = "not_tested";
+    if (redis) {
+      try {
+        const redisPing = await redis.ping();
+        redisStatus = redisPing === "PONG" ? "success" : `unexpected: ${redisPing}`;
+      } catch (err: any) {
+        redisStatus = `failed: ${err.message}`;
+      }
+    } else {
+      redisStatus = "not_configured";
+    }
+
+    // 4. Test Downstream Health from Redis Cache (Phase 5)
+    let downstreamHealth = null;
+    if (redis) {
+      try {
+        downstreamHealth = await redis.get("system:health:downstream");
+      } catch (e) {}
+    }
+
     const dbUrl = process.env.DATABASE_URL || "MISSING";
     const maskedUrl = dbUrl.replace(/:[^:@/]+@/, ":****@");
-    
+
     return c.json({
       status: "online",
       environment: "vercel",
       database: maskedUrl,
       pgDriverStatus: pgStatus,
       drizzleStatus: drizzleStatus,
+      redisStatus: redisStatus,
+      inngestStatus: "active", // Route /inngest is mounted
+      downstreamHealth: downstreamHealth || "pending_first_scan",
       columnExistsInDb: columnExists,
       columnsFound: columnsFound,
       timestamp: new Date().toISOString()
@@ -234,6 +329,7 @@ app.post("/session/save", async (c) => {
   const { userId, newHandle, transcript } = await c.req.json();
   if (!userId) return c.json({ error: "Missing userId" }, 400);
 
+  // Save the handle to Redis (fast, stays synchronous)
   try {
     if (redis && newHandle) {
       await redis.set(`handle:${userId}`, newHandle, { ex: 7200 }); // 2 hours TTL
@@ -242,15 +338,16 @@ app.post("/session/save", async (c) => {
     console.error("Redis save failed:", err);
   }
 
-  try {
-    if (mem0 && transcript && transcript.trim().length > 0) {
-      await mem0.add(
-        [{ role: 'assistant', content: transcript }],
-        { user_id: userId }
-      );
+  // Offload Mem0 sync to Inngest — no longer blocking the response
+  if (transcript && transcript.trim().length > 0) {
+    try {
+      await inngest.send({
+        name: "session/completed",
+        data: { userId, transcript },
+      });
+    } catch (err) {
+      console.error("[Inngest] Failed to dispatch session/completed event:", err);
     }
-  } catch (err) {
-    console.error("Mem0 save failed:", err);
   }
 
   return c.json({ success: true });

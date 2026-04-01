@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useUser } from '@clerk/clerk-react';
 import { Wallet as WalletIcon, CreditCard, ArrowLeft, Plus, History, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -97,32 +97,36 @@ function CheckoutForm({ clientSecret, paymentIntentId, onCancel, onSuccess }: {
 }
 
 export default function Wallet() {
+  const { user } = useUser();
   const [balance, setBalance] = useState<number>(0);
   const [amount, setAmount] = useState<string>('10');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [checkoutData, setCheckoutData] = useState<{ clientSecret: string, id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchBalance();
-  }, []);
+    if (user) {
+      fetchBalance();
+    }
+  }, [user]);
 
   const fetchBalance = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('wallet_balance')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (error) console.error("Error fetching balance:", error);
-    if (data) setBalance(data.wallet_balance);
-    else setBalance(0);
+    try {
+      const response = await fetch(`/api/wallet/profile?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBalance(data.walletBalance || 0);
+      }
+    } catch (err) {
+      console.error("Error fetching balance:", err);
+      setBalance(0);
+    }
   };
 
   const handleTopUp = async () => {
@@ -136,7 +140,6 @@ export default function Wallet() {
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       const response = await fetch('/api/create-payment-intent', {
@@ -153,6 +156,31 @@ export default function Wallet() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    setError(null);
+    try {
+      if (!user) throw new Error('User not authenticated');
+
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create portal session');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -257,7 +285,23 @@ export default function Wallet() {
                 </button>
               </div>
 
-              <div className="pt-8 border-t border-white/5">
+              <div className="pt-8 border-t border-white/5 space-y-3">
+                <button 
+                  onClick={handleManageBilling}
+                  disabled={portalLoading}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors group disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    {portalLoading ? (
+                      <Loader2 size={18} className="animate-spin text-white/40" />
+                    ) : (
+                      <CreditCard size={18} className="text-white/40 group-hover:text-white transition-colors" />
+                    )}
+                    <span className="text-xs font-bold uppercase tracking-wider">Manage Billing</span>
+                  </div>
+                  <ArrowLeft size={16} className="rotate-180 text-white/20 group-hover:text-white transition-colors" />
+                </button>
+
                 <button 
                   onClick={() => navigate('/records')}
                   className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors group"

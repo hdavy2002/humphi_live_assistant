@@ -7,11 +7,11 @@ export interface Profile {
 
 export interface Transaction {
   id: string;
-  userId: string;
+  walletId: string;
   amount: number;
-  type: string;
-  status: string;
-  description: string | null;
-  stripeSessionId: string | null;
+  type: string; // 'topup' or 'usage'
+  status: string; // 'completed', 'pending', 'failed'
+  providerSessionId: string | null;
+  metadata: any;
   createdAt: Date;
 }

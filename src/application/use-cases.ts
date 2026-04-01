@@ -1,5 +1,6 @@
 import { ProfileRepository, TransactionRepository } from "../domain/repositories.js";
 import Stripe from "stripe";
+import { getOrSet, cacheKeys, invalidate } from "../../api/lib/cache.js";
 
 export class WalletUseCase {
   constructor(
@@ -110,14 +111,14 @@ export class WalletUseCase {
       
       // Atomic Update (ideally this should be in a transaction, but we'll stick to sequential for now as per current pattern)
       await this.profileRepo.updateBalance(userId, newBalance);
+      await invalidate(cacheKeys.profile(userId));
 
       await this.transactionRepo.create({
-        userId,
+        metadata: { userId, description: `Stripe Top-up: ${paymentIntentId}` },
         amount,
         type: "topup",
         status: "completed",
-        stripeSessionId: paymentIntentId,
-        description: `Stripe Top-up: ${paymentIntentId}`,
+        providerSessionId: paymentIntentId,
       });
 
       return { success: true, newBalance };
@@ -144,13 +145,14 @@ export class WalletUseCase {
 
       const newBalance = profile.walletBalance + amount;
       await this.profileRepo.updateBalance(userId, newBalance);
+      await invalidate(cacheKeys.profile(userId));
 
       await this.transactionRepo.create({
-        userId,
+        metadata: { userId },
         amount,
         type: "topup",
         status: "completed",
-        stripeSessionId: sessionId,
+        providerSessionId: sessionId,
       });
 
       return { success: true, newBalance };
@@ -177,5 +179,52 @@ export class WalletUseCase {
         console.log(`Unhandled event type: ${event.type}`);
         return { success: true, handled: false };
     }
+  }
+
+  async getProfile(userId: string) {
+    return await getOrSet(
+      cacheKeys.profile(userId),
+      async () => await this.profileRepo.getById(userId)
+    );
+  }
+
+  async getTransactions(userId: string) {
+    return await this.transactionRepo.getByUserId(userId);
+  }
+
+  async seedWallet(userId: string, email: string) {
+    const profile = await this.profileRepo.getById(userId);
+    if (!profile) {
+      await this.profileRepo.create({ id: userId, email, walletBalance: 0 });
+      await invalidate(cacheKeys.profile(userId));
+      return { id: userId, email, walletBalance: 0 };
+    }
+    return profile;
+  }
+
+  async createPortalSession(userId: string, appUrl: string) {
+    const profile = await this.profileRepo.getById(userId);
+    if (!profile || !profile.email) {
+      throw new Error("User profile or email not found.");
+    }
+
+    // Find customer by email as a reliable fallback since we don't store stripeCustomerId yet
+    const customers = await this.stripe.customers.list({
+      email: profile.email,
+      limit: 1,
+    });
+
+    if (customers.data.length === 0) {
+      throw new Error("No Stripe customer found for this email. Please make at least one top-up first.");
+    }
+
+    const customerId = customers.data[0].id;
+
+    const session = await this.stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${appUrl}/wallet`,
+    });
+
+    return session.url;
   }
 }

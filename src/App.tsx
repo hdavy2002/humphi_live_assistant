@@ -1,71 +1,283 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText, 
-  Send, X, Play, Volume2, AlertCircle, CheckCircle2,
-  MessageSquare, Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
-  Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History
-} from 'lucide-react';
-import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
-import { cn } from './lib/utils';
-import { AudioRecorder, AudioPlayer } from './lib/audio-utils';
-import { Message, LogEntry, AudioDevice, Profile } from './types';
-import ReactMarkdown from 'react-markdown';
-import { motion, AnimatePresence } from 'motion/react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from './lib/supabase';
-import Auth from './components/Auth';
-import Wallet from './components/Wallet';
-import ProfilePage from './components/Profile';
-import Records from './components/Records';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/clerk-react";
+import { LayoutDashboard, Wallet, Mic, History, Settings, ExternalLink, PlusCircle, CreditCard, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSearchParams, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
+import WalletPage from "./components/Wallet";
+import RecordsPage from "./components/Records";
+import ProfilePage from "./components/Profile";
 
-const MODEL_NAME = "gemini-3.1-flash-live-preview";
+function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`nav-item w-full flex items-center gap-3 transition-all duration-200 ${active ? 'nav-item-active bg-blue-500/10 text-blue-400' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+    >
+      <Icon size={18} />
+      <span className="text-sm font-medium">{label}</span>
+    </button>
+  );
+}
 
-const VOICE_GENDERS: Record<string, string> = {
-  "Zephyr": "masculine",
-  "Puck": "feminine",
-  "Charon": "masculine",
-  "Kore": "feminine",
-  "Fenrir": "masculine"
-};
-
-function LogItem({ log }: { log: LogEntry }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const hasDetails = !!log.details;
+function DashboardLayout() {
+  const { user } = useUser();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTab = location.pathname;
 
   return (
-    <div className="border-b border-white/5 last:border-0 py-1">
-      <div 
-        className={cn(
-          "flex items-start gap-2 group cursor-pointer hover:bg-white/5 p-1 rounded transition-colors",
-          !isExpanded && "text-white/40"
-        )}
-        onClick={() => hasDetails && setIsExpanded(!isExpanded)}
-      >
-        <span className="text-[9px] text-white/20 shrink-0 mt-0.5">
-          {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "px-1 rounded text-[8px] font-bold uppercase tracking-widest",
-              log.type === 'info' ? "bg-blue-500/10 text-blue-400" :
-              log.type === 'error' ? "bg-red-500/10 text-red-400" :
-              "bg-green-500/10 text-green-400"
-            )}>
-              {log.type}
-            </span>
-            <span className="truncate">{log.message}</span>
-            {hasDetails && (
-              <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-              </span>
-            )}
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
+      {/* Sidebar */}
+      <aside className="w-64 glass-panel m-4 flex flex-col border-none shrink-0 overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-8 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">H</div>
+            <span className="text-xl font-bold tracking-tight text-white">Humphi AI</span>
           </div>
-          {isExpanded && log.details && (
-            <pre className="mt-1 p-2 bg-black/40 rounded text-[9px] overflow-x-auto text-white/60 leading-relaxed border border-white/5">
-              {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
-            </pre>
+
+          <nav className="space-y-1">
+            <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "/"} onClick={() => navigate('/')} />
+            <SidebarItem icon={Wallet} label="Wallet" active={activeTab === "/wallet"} onClick={() => navigate('/wallet')} />
+            <SidebarItem icon={Mic} label="Recordings" active={activeTab === "/recordings"} onClick={() => navigate('/recordings')} />
+            <SidebarItem icon={History} label="History" active={activeTab === "/records"} onClick={() => navigate('/records')} />
+          </nav>
+        </div>
+
+        <div className="mt-auto p-6 border-t border-white/5">
+          <SidebarItem icon={Settings} label="Settings" active={activeTab === "/profile"} onClick={() => navigate('/profile')} />
+          <div className="mt-4 flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
+            <UserButton afterSignOutUrl="/" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-white truncate">{user?.firstName || 'User'}</span>
+              <span className="text-[10px] text-text-secondary uppercase font-black tracking-widest truncate">Premium Plan</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto relative">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function Home() {
+  const { user } = useUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [balance, setBalance] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const fetchWalletData = async () => {
+    if (!user?.id) return;
+    try {
+      const [balanceRes, transactionsRes] = await Promise.all([
+        fetch(`/api/wallet/profile?userId=${user.id}`),
+        fetch(`/api/wallet/transactions?userId=${user.id}`)
+      ]);
+      
+      if (balanceRes.ok) {
+        const data = await balanceRes.json();
+        setBalance(data.walletBalance);
+      }
+      
+      if (transactionsRes.ok) {
+        const data = await transactionsRes.json();
+        setTransactions(Array.isArray(data) ? data : (data.transactions || []));
+      }
+    } catch (err) {
+      console.error("Failed to fetch wallet data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      const verifySession = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/verify-session?sessionId=${sessionId}`, {
+            method: 'POST'
+          });
+          if (res.ok) {
+            searchParams.delete("session_id");
+            setSearchParams(searchParams);
+          }
+        } catch (err) {
+          console.error("Verification failed:", err);
+        } finally {
+          fetchWalletData();
+        }
+      };
+      verifySession();
+    } else {
+      fetchWalletData();
+    }
+  }, [user?.id, searchParams]);
+
+  const handleTopUp = () => {
+    navigate('/wallet');
+  };
+
+  return (
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
+        <div>
+          <h1 className="text-4xl md:text-5xl font-black text-white mb-3 tracking-tight">
+            Welcome back, <span className="text-blue-400">{user?.firstName || 'there'}!</span>
+          </h1>
+          <p className="text-text-secondary text-lg">Track your AI usage and manage your wallet seamlessly.</p>
+        </div>
+        <button 
+          className="btn-premium-accent w-full md:w-auto" 
+          onClick={handleTopUp}
+          disabled={topUpLoading}
+        >
+          {topUpLoading ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
+          Top up Wallet
+        </button>
+      </header>
+
+      {/* Dynamic Content Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Wallet Card */}
+        <div className="glass-panel p-8 flex flex-col justify-between group hover:border-blue-500/30 transition-all border-none">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+              <Wallet size={28} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-green-500/10 text-green-400">Active</span>
+          </div>
+          <div>
+            <p className="text-text-secondary text-xs font-bold uppercase tracking-widest mb-1">Available Balance</p>
+            <p className="text-5xl font-black text-white mb-6">
+              {balance !== null ? `$${balance.toFixed(2)}` : (loading ? "..." : "$0.00")}
+            </p>
+          </div>
+          <button onClick={() => navigate('/wallet')} className="text-sm font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors uppercase tracking-widest">
+            Manage billing <ExternalLink size={14} />
+          </button>
+        </div>
+
+        {/* Usage Stats Card */}
+        <div className="glass-panel p-8 border-none">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-400">
+              <CreditCard size={28} />
+            </div>
+          </div>
+          <p className="text-text-secondary text-xs font-bold uppercase tracking-widest mb-1">Monthly Usage</p>
+          <p className="text-4xl font-black text-white mb-6">$12.40</p>
+          <div className="w-full bg-white/5 rounded-full h-3 mb-3">
+            <div className="bg-purple-500 h-3 rounded-full w-2/3 shadow-lg shadow-purple-500/50"></div>
+          </div>
+          <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Used 66% of your typical limit</p>
+        </div>
+
+        {/* Recent Recording Card */}
+        <div className="glass-panel p-8 flex flex-col justify-between border-none">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-400">
+              <Mic size={28} />
+            </div>
+          </div>
+          <div>
+            <p className="text-text-secondary text-xs font-bold uppercase tracking-widest mb-1">Total Recordings</p>
+            <p className="text-4xl font-black text-white">42</p>
+          </div>
+          <p className="mt-6 text-sm text-text-secondary italic border-l-2 border-amber-500/30 pl-4 font-medium">"Latest: Team Sync Summary..."</p>
+        </div>
+      </div>
+
+      {/* Featured Section */}
+      <section className="mt-16">
+        <h2 className="text-2xl font-black mb-6 uppercase tracking-wider">Recent Activity</h2>
+        <div className="glass-panel overflow-hidden border-none shadow-2xl">
+          {transactions.length > 0 ? (
+            transactions.slice(0, 5).map((tx) => (
+              <div key={tx.id} className="p-6 border-b border-white/5 flex items-center justify-between hover:bg-white/5 transition-all cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${
+                    tx.type === 'TOP_UP' || tx.type === 'topup' ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'
+                  }`}>
+                    {tx.type === 'TOP_UP' || tx.type === 'topup' ? <History size={20} /> : <Mic size={20} />}
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-lg">{tx.description || tx.type}</p>
+                    <p className="text-xs font-bold text-text-secondary uppercase tracking-widest">
+                      {new Date(tx.createdAt || tx.created_at).toLocaleDateString()} • {new Date(tx.createdAt || tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`text-xl font-black ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {tx.amount > 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}
+                  </span>
+                  <p className="text-[10px] font-black uppercase tracking-tighter text-white/20">{tx.status}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-16 text-center text-text-secondary">
+              {loading ? <Loader2 size={32} className="animate-spin mx-auto mb-4 opacity-20" /> : "No recent activity found."}
+              <p className="font-bold uppercase tracking-widest text-xs opacity-20">{loading ? "Synchronizing data..." : "Start a recording to see activity"}</p>
+            </div>
           )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function WelcomeScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full animate-pulse"></div>
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-500/10 blur-[120px] rounded-full animate-pulse delay-700"></div>
+
+      <div className="max-w-4xl w-full text-center relative z-10 glass-panel p-12 border-none">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-8">
+          <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+          Now Live
+        </div>
+        <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
+          Humphi <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Live Assistant</span>
+        </h1>
+        <p className="text-xl text-text-secondary mb-12 max-w-2xl mx-auto leading-relaxed">
+          The most powerful AI companion for your recordings and daily workflows. Secure, fast, and remarkably intelligent.
+        </p>
+        
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <SignInButton>
+            <button className="btn-premium w-full sm:w-auto justify-center text-lg px-10 py-4">
+              Sign In
+            </button>
+          </SignInButton>
+          <SignUpButton>
+            <button className="btn-premium-accent w-full sm:w-auto justify-center text-lg px-10 py-4 bg-transparent border-2 border-amber-500/50 hover:bg-amber-500/10">
+              Create Account
+            </button>
+          </SignUpButton>
+        </div>
+
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-8 text-left border-t border-white/5 pt-12">
+          <div>
+            <h3 className="font-bold text-white mb-2">Crystal Clear</h3>
+            <p className="text-sm text-text-secondary">High-fidelity transcription for every recording.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-white mb-2">Smart Insights</h3>
+            <p className="text-sm text-text-secondary">AI-powered summaries and action items in seconds.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-white mb-2">Secure Billing</h3>
+            <p className="text-sm text-text-secondary">Transparent, usage-based wallet system.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -73,1243 +285,23 @@ function LogItem({ log }: { log: LogEntry }) {
 }
 
 export default function App() {
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (session?.user) {
-      fetchProfile();
-    } else {
-      setProfile(null);
-    }
-  }, [session]);
-
-  const fetchProfile = async () => {
-    if (!session?.user) return;
-
-    let { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .maybeSingle();
-    
-    if (error) {
-      console.error("Fetch profile error:", error);
-    }
-
-    if (!data && !error) {
-      // Profile missing, create a default one
-      const { data: newProfile, error: createError } = await supabase
-        .from('profiles')
-        .insert([{ id: session.user.id, email: session.user.email, wallet_balance: 0 }])
-        .select()
-        .single();
-      
-      if (createError) {
-        console.error("Error creating profile:", createError);
-      } else {
-        data = newProfile;
-      }
-    }
-
-    if (data) setProfile(data);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsMenuOpen(false);
-  };
-
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isMicOn, setIsMicOn] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  // Settings
-  const [selectedMic, setSelectedMic] = useState<string>("default");
-  const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
-  const [selectedAccent, setSelectedAccent] = useState<string>("Neutral");
-  const [systemPrompt] = useState<string>(
-    "You are a helpful assistant and you also also a tecch expert helping users navigate all windows issues, so guide them if they need any tech help. You are also an IT system administrator have full knwledge on how to fix network, routers, etc. Apart from that you are gentle, warm and loving person."
-  );
-  const [devices, setDevices] = useState<AudioDevice[]>([]);
-  const [screenQuality, setScreenQuality] = useState(0.6);
-  const [screenMaxDimension, setScreenMaxDimension] = useState(720);
-  const [isTestingMic, setIsTestingMic] = useState(false);
-  const [micVolume, setMicVolume] = useState(0);
-  const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
-
-  const connectedRef = useRef(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const logEndRef = useRef<HTMLDivElement>(null);
-  const sessionRef = useRef<any>(null);
-  const audioRecorderRef = useRef<AudioRecorder | null>(null);
-  const audioPlayerRef = useRef<AudioPlayer | null>(null);
-  const screenIntervalRef = useRef<number | null>(null);
-  const micTestIntervalRef = useRef<number | null>(null);
-
-  const previousHandleRef = useRef<string | null>(null);
-  const transcriptRef = useRef<string>("");
-  const longTermMemoryRef = useRef<any[]>([]);
-  const isGoAwayReconnectingRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    getDevices();
-    return () => {
-      stopSession();
-    };
-  }, []);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  const getDevices = async () => {
-    try {
-      const devs = await navigator.mediaDevices.enumerateDevices();
-      const audioIn = devs
-        .filter(d => d.kind === 'audioinput')
-        .map(d => ({ deviceId: d.deviceId, label: d.label || `Mic ${d.deviceId.slice(0, 5)}` }));
-      setDevices(audioIn);
-    } catch (err) {
-      addLog('error', 'Failed to enumerate devices', err);
-    }
-  };
-
-  const addLog = (type: LogEntry['type'], message: string, details?: any) => {
-    setLogs(prev => [...prev, {
-      id: Math.random().toString(36).slice(2),
-      timestamp: new Date(),
-      type,
-      message,
-      details
-    }]);
-  };
-
-  const startSession = async (isResume = false) => {
-    if ((isConnecting || isConnected) && !isResume) return;
-
-    // Check wallet balance before starting
-    if (!profile || (profile.wallet_balance || 0) <= 0) {
-      addLog('error', 'Insufficient wallet balance. Please top up your wallet.');
-      navigate('/wallet');
-      return;
-    }
-
-    if (!isResume) {
-      setIsConnecting(true);
-      setTokenUsage({ input: 0, output: 0, total: 0 }); // Reset usage for new session
-      addLog('info', 'Starting Gemini Live session...');
-      
-      try {
-        const res = await fetch(`/api/session/init?userId=${session?.user?.id || ''}`);
-        if (res.ok) {
-          const data = await res.json();
-          previousHandleRef.current = data.previousHandle || null;
-          longTermMemoryRef.current = data.longTermMemory || [];
-        }
-      } catch (err) {
-        addLog('error', 'Failed to fetch session context', err);
-      }
-    } else {
-      addLog('info', 'Resuming session rapidly...');
-    }
-    
-    try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-      
-      if (!isResume) {
-        audioPlayerRef.current = new AudioPlayer();
-      }
-
-      const memoryLines = longTermMemoryRef.current.length > 0
-        ? longTermMemoryRef.current.map(m => `- ${m.memory}`).join('\n')
-        : 'First session with this user.';
-
-      const geminiSession = await ai.live.connect({
-        model: MODEL_NAME,
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: selectedVoice as any
-              }
-            }
-          },
-          contextWindowCompression: {
-            slidingWindow: {}
-          },
-          ...(previousHandleRef.current ? { sessionResumption: { handle: previousHandleRef.current } } : {}),
-          systemInstruction: {
-            parts: [{
-              text: `${systemPrompt} 
-          IMPORTANT: You are a ${VOICE_GENDERS[selectedVoice] || 'neutral'} persona. 
-          In languages like Hindi, you MUST use the ${VOICE_GENDERS[selectedVoice] || 'neutral'} gender for yourself (e.g., use feminine verb endings if you are feminine).
-          You MUST speak to me in ${selectedLanguage} with a ${selectedAccent} accent.
-          
-          WHAT YOU KNOW ABOUT THIS USER FROM PAST SESSIONS:
-          ${memoryLines}`
-            }]
-          }
-        },
-        callbacks: {
-          onopen: () => {
-            setIsConnected(true);
-            connectedRef.current = true;
-            setIsConnecting(false);
-            isGoAwayReconnectingRef.current = false;
-            addLog('info', 'Connected to Gemini Live');
-            
-            // Auto-enable mic when session starts
-            if (!isResume) {
-              setIsMicOn(true);
-              startAudioCapture();
-            }
-          },
-          onmessage: (message: LiveServerMessage) => {
-            handleServerMessage(message);
-          },
-          onclose: () => {
-            if (isGoAwayReconnectingRef.current) return;
-            connectedRef.current = false;
-            stopSession();
-            addLog('info', 'Session closed');
-          },
-          onerror: (err) => {
-            if (isGoAwayReconnectingRef.current) return;
-            addLog('error', 'Session error', err);
-            stopSession();
-          }
-        }
-      });
-
-      sessionRef.current = geminiSession;
-    } catch (err) {
-      addLog('error', 'Failed to connect', err);
-      setIsConnecting(false);
-      stopSession();
-    }
-  };
-
-  const stopSession = () => {
-    if (!connectedRef.current && !isConnecting) return;
-    
-    setIsConnected(false);
-    connectedRef.current = false;
-    setIsConnecting(false);
-    setIsMicOn(false);
-    setIsScreenSharing(false);
-    setIsCameraOn(false);
-    
-    if (sessionRef.current) {
-      sessionRef.current.close();
-      sessionRef.current = null;
-    }
-    
-    stopAudioCapture();
-    stopScreenCapture();
-    stopCameraCapture();
-    
-    if (audioPlayerRef.current) {
-      audioPlayerRef.current.stop();
-      audioPlayerRef.current = null;
-    }
-
-    // Save state to backend
-    if (transcriptRef.current && session?.user?.id && !isGoAwayReconnectingRef.current) {
-      fetch('/api/session/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: session.user.id,
-          newHandle: previousHandleRef.current,
-          transcript: transcriptRef.current
-        })
-      }).catch(err => addLog('error', 'Failed to save session state', err));
-      transcriptRef.current = "";
-    }
-
-    addLog('info', 'Session ended');
-  };
-
-  const handleServerMessage = async (msg: LiveServerMessage) => {
-    const message = msg as any;
-
-    if (message.sessionResumptionUpdate?.resumable && message.sessionResumptionUpdate.newHandle) {
-      previousHandleRef.current = message.sessionResumptionUpdate.newHandle;
-      addLog('info', 'Resumption token updated');
-    }
-
-    if (message.goAway) {
-      addLog('info', 'GoAway received — reconnecting with saved token');
-      isGoAwayReconnectingRef.current = true;
-      startSession(true);
-      return;
-    }
-
-    if (message.serverContent?.modelTurn?.parts) {
-      const textParts = message.serverContent.modelTurn.parts
-        .filter((p: any) => p.text)
-        .map((p: any) => p.text)
-        .join(" ");
-      
-      if (textParts) {
-        setMessages(prev => [...prev, {
-          id: Math.random().toString(36).slice(2),
-          role: 'model',
-          text: textParts,
-          timestamp: new Date()
-        }]);
-      }
-
-      const audioParts = message.serverContent.modelTurn.parts
-        .filter((p: any) => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
-      
-      for (const p of audioParts) {
-        if (p.inlineData && audioPlayerRef.current) {
-          await audioPlayerRef.current.playChunk(p.inlineData.data);
-        }
-      }
-    }
-    
-    // Accumulate transcription for Mem0
-    if (message.serverContent?.outputTranscription?.text) {
-      const text = message.serverContent.outputTranscription.text;
-      transcriptRef.current += " " + text;
-    }
-
-    if (message.serverContent?.interrupted) {
-      addLog('info', 'Model interrupted');
-      audioPlayerRef.current?.stop();
-    }
-
-    if (message.usageMetadata || message.serverContent?.usageMetadata) {
-      const usage = message.usageMetadata || message.serverContent?.usageMetadata;
-      addLog('info', 'Usage update', usage);
-      setTokenUsage(prev => ({
-        input: usage?.promptTokenCount || prev.input,
-        output: usage?.candidatesTokenCount || usage?.responseTokenCount || prev.output,
-        total: usage?.totalTokenCount || prev.total
-      }));
-    }
-  };
-
-  const startAudioCapture = async () => {
-    try {
-      audioRecorderRef.current = new AudioRecorder((base64Data) => {
-        if (sessionRef.current && connectedRef.current) {
-          sessionRef.current.sendRealtimeInput({
-            audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
-          });
-        }
-      }, (volume) => {
-        setMicVolume(volume);
-      });
-      await audioRecorderRef.current.start(selectedMic);
-      addLog('info', 'Microphone capture started');
-    } catch (err) {
-      addLog('error', 'Failed to start audio capture', err);
-      setIsMicOn(false);
-    }
-  };
-
-  const stopAudioCapture = () => {
-    if (audioRecorderRef.current) {
-      audioRecorderRef.current.stop();
-      audioRecorderRef.current = null;
-    }
-    setMicVolume(0);
-    addLog('info', 'Microphone capture stopped');
-  };
-
-  const toggleMic = () => {
-    const newState = !isMicOn;
-    setIsMicOn(newState);
-    if (newState) {
-      if (isConnected) startAudioCapture();
-    } else {
-      stopAudioCapture();
-    }
-  };
-
-  const startScreenCapture = async () => {
-    try {
-      // Stop camera if it's on
-      if (isCameraOn) stopCameraCapture();
-
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: 5 }
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => addLog('error', 'Video play failed', e));
-      }
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      screenIntervalRef.current = window.setInterval(() => {
-        if (videoRef.current && ctx && sessionRef.current && connectedRef.current) {
-          const video = videoRef.current;
-          if (video.readyState < 2) return; // Wait for metadata
-
-          const ratio = Math.min(screenMaxDimension / video.videoWidth, screenMaxDimension / video.videoHeight, 1);
-          canvas.width = video.videoWidth * ratio;
-          canvas.height = video.videoHeight * ratio;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          const base64Data = canvas.toDataURL('image/jpeg', screenQuality).split(',')[1];
-          sessionRef.current.sendRealtimeInput({
-            video: { data: base64Data, mimeType: 'image/jpeg' }
-          });
-          addLog('info', `Screen frame sent: ${Math.round(base64Data.length / 1024)} KB`);
-        }
-      }, 2000); // Increased interval to 2s to reduce overhead and latency
-
-      stream.getVideoTracks()[0].onended = () => stopScreenCapture();
-      addLog('info', 'Screen capture started');
-    } catch (err) {
-      addLog('error', 'Failed to start screen capture', err);
-      setIsScreenSharing(false);
-    }
-  };
-
-  const stopScreenCapture = () => {
-    if (screenIntervalRef.current) {
-      clearInterval(screenIntervalRef.current);
-      screenIntervalRef.current = null;
-    }
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(t => t.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsScreenSharing(false);
-    addLog('info', 'Screen capture stopped');
-  };
-
-  const toggleScreenShare = () => {
-    const newState = !isScreenSharing;
-    setIsScreenSharing(newState);
-    if (newState) {
-      startScreenCapture();
-    } else {
-      stopScreenCapture();
-    }
-  };
-
-  const startCameraCapture = async () => {
-    try {
-      // Stop screen share if it's on
-      if (isScreenSharing) stopScreenCapture();
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: screenMaxDimension }, height: { ideal: screenMaxDimension }, frameRate: 5 }
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => addLog('error', 'Video play failed', e));
-      }
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      screenIntervalRef.current = window.setInterval(() => {
-        if (videoRef.current && ctx && sessionRef.current && connectedRef.current) {
-          const video = videoRef.current;
-          if (video.readyState < 2) return; // Wait for metadata
-
-          const ratio = Math.min(screenMaxDimension / video.videoWidth, screenMaxDimension / video.videoHeight, 1);
-          canvas.width = video.videoWidth * ratio;
-          canvas.height = video.videoHeight * ratio;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          const base64Data = canvas.toDataURL('image/jpeg', screenQuality).split(',')[1];
-          sessionRef.current.sendRealtimeInput({
-            video: { data: base64Data, mimeType: 'image/jpeg' }
-          });
-          addLog('info', `Camera frame sent: ${Math.round(base64Data.length / 1024)} KB`);
-        }
-      }, 2000); // Increased interval to 2s to reduce overhead and latency
-
-      stream.getVideoTracks()[0].onended = () => stopCameraCapture();
-      addLog('info', 'Camera capture started');
-    } catch (err) {
-      addLog('error', 'Failed to start camera capture', err);
-      setIsCameraOn(false);
-    }
-  };
-
-  const stopCameraCapture = () => {
-    if (screenIntervalRef.current) {
-      clearInterval(screenIntervalRef.current);
-      screenIntervalRef.current = null;
-    }
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(t => t.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOn(false);
-    addLog('info', 'Camera capture stopped');
-  };
-
-  const toggleCamera = () => {
-    const newState = !isCameraOn;
-    setIsCameraOn(newState);
-    if (newState) {
-      startCameraCapture();
-    } else {
-      stopCameraCapture();
-    }
-  };
-
-  const handleSendMessage = () => {
-    if (!inputText.trim() || !sessionRef.current) return;
-    
-    const text = inputText.trim();
-    setMessages(prev => [...prev, {
-      id: Math.random().toString(36).slice(2),
-      role: 'user',
-      text,
-      timestamp: new Date()
-    }]);
-    
-    sessionRef.current.sendRealtimeInput({ text });
-    setInputText("");
-    addLog('info', 'Text message sent');
-  };
-
-  const toggleMicTest = async () => {
-    if (isTestingMic) {
-      if (micTestIntervalRef.current) clearInterval(micTestIntervalRef.current);
-      setIsTestingMic(false);
-      setMicVolume(0);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: selectedMic } });
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      setIsTestingMic(true);
-      
-      micTestIntervalRef.current = window.setInterval(() => {
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        setMicVolume(average / 128);
-      }, 50);
-
-      // Cleanup on stop
-      const originalStop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        audioContext.close();
-      };
-      // Store cleanup
-    } catch (err) {
-      addLog('error', 'Mic test failed', err);
-    }
-  };
-
-  const testSpeakers = async () => {
-    try {
-      addLog('info', 'Testing speakers...');
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-      }
-
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-      
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 1);
-      
-      setTimeout(() => {
-        audioContext.close();
-      }, 1500);
-
-      addLog('info', 'Speaker test sound played successfully');
-    } catch (err) {
-      addLog('error', 'Speaker test failed', err);
-      console.error('Speaker test error:', err);
-    }
-  };
-
-  const copyLogs = () => {
-    const text = logs.map(l => `[${l.timestamp.toLocaleTimeString()}] ${l.type.toUpperCase()}: ${l.message}${l.details ? '\n' + JSON.stringify(l.details, null, 2) : ''}`).join('\n\n');
-    navigator.clipboard.writeText(text);
-    addLog('info', 'Logs copied to clipboard');
-  };
-
-  if (!session) {
-    return <Auth />;
-  }
-
   return (
-    <Routes>
-      <Route path="/" element={<ChatView 
-        isConnected={isConnected}
-        setIsConnected={setIsConnected}
-        isConnecting={isConnecting}
-        setIsConnecting={setIsConnecting}
-        isMicOn={isMicOn}
-        setIsMicOn={setIsMicOn}
-        isScreenSharing={isScreenSharing}
-        setIsScreenSharing={setIsScreenSharing}
-        isCameraOn={isCameraOn}
-        setIsCameraOn={setIsCameraOn}
-        messages={messages}
-        setMessages={setMessages}
-        logs={logs}
-        setLogs={setLogs}
-        inputText={inputText}
-        setInputText={setInputText}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        selectedMic={selectedMic}
-        setSelectedMic={setSelectedMic}
-        selectedVoice={selectedVoice}
-        setSelectedVoice={setSelectedVoice}
-        selectedLanguage={selectedLanguage}
-        setSelectedLanguage={setSelectedLanguage}
-        selectedAccent={selectedAccent}
-        setSelectedAccent={setSelectedAccent}
-        systemPrompt={systemPrompt}
-        devices={devices}
-        setDevices={setDevices}
-        screenQuality={screenQuality}
-        setScreenQuality={setScreenQuality}
-        screenMaxDimension={screenMaxDimension}
-        setScreenMaxDimension={setScreenMaxDimension}
-        isTestingMic={isTestingMic}
-        setIsTestingMic={setIsTestingMic}
-        micVolume={micVolume}
-        setMicVolume={setMicVolume}
-        tokenUsage={tokenUsage}
-        setTokenUsage={setTokenUsage}
-        startSession={startSession}
-        stopSession={stopSession}
-        toggleMic={toggleMic}
-        toggleCamera={toggleCamera}
-        toggleScreenShare={toggleScreenShare}
-        handleSendMessage={handleSendMessage}
-        toggleMicTest={toggleMicTest}
-        testSpeakers={testSpeakers}
-        copyLogs={copyLogs}
-        profile={profile}
-        isMenuOpen={isMenuOpen}
-        setIsMenuOpen={setIsMenuOpen}
-        handleLogout={handleLogout}
-        videoRef={videoRef}
-        chatEndRef={chatEndRef}
-        logEndRef={logEndRef}
-        stopScreenCapture={stopScreenCapture}
-        stopCameraCapture={stopCameraCapture}
-      />} />
-      <Route path="/wallet" element={<Wallet />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/records" element={<Records />} />
-    </Routes>
-  );
-}
-
-function ChatView({ 
-  isConnected, setIsConnected, isConnecting, setIsConnecting,
-  isMicOn, setIsMicOn, isScreenSharing, setIsScreenSharing,
-  isCameraOn, setIsCameraOn, messages, setMessages, logs, setLogs,
-  inputText, setInputText, activeTab, setActiveTab,
-  selectedMic, setSelectedMic, selectedVoice, setSelectedVoice,
-  selectedLanguage, setSelectedLanguage, selectedAccent, setSelectedAccent,
-  systemPrompt, devices, setDevices, screenQuality, setScreenQuality,
-  screenMaxDimension, setScreenMaxDimension, isTestingMic, setIsTestingMic,
-  micVolume, setMicVolume, tokenUsage, setTokenUsage,
-  startSession, stopSession, toggleMic, toggleCamera, toggleScreenShare,
-  handleSendMessage, toggleMicTest, testSpeakers, copyLogs,
-  profile, isMenuOpen, setIsMenuOpen, handleLogout,
-  videoRef, chatEndRef, logEndRef, stopScreenCapture, stopCameraCapture
-}: any) {
-  const navigate = useNavigate();
-
-  return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden max-w-[450px] mx-auto border-x border-white/5 shadow-2xl relative">
-      {/* Hamburger Menu Overlay */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMenuOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[60]"
-            />
-            <motion.div 
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              className="absolute top-0 left-0 bottom-0 w-64 bg-[#0d0d0d] border-r border-white/10 z-[70] p-6 flex flex-col"
-            >
-              <div className="flex items-center gap-3 mb-10">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <PlayIcon size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold tracking-tight">Gemini Live</h2>
-                  <p className="text-[8px] text-white/40 uppercase font-bold tracking-widest">Premium Assistant</p>
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-2">
-                <button 
-                  onClick={() => { navigate('/profile'); setIsMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-white/60 hover:text-white group"
-                >
-                  <User size={18} className="group-hover:text-blue-400 transition-colors" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Profile</span>
-                </button>
-                <button 
-                  onClick={() => { navigate('/wallet'); setIsMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-white/60 hover:text-white group"
-                >
-                  <WalletIcon size={18} className="group-hover:text-green-400 transition-colors" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Wallet</span>
-                </button>
-                <button 
-                  onClick={() => { navigate('/records'); setIsMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-white/60 hover:text-white group"
-                >
-                  <History size={18} className="group-hover:text-purple-400 transition-colors" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Records</span>
-                </button>
-              </div>
-
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 transition-colors text-red-500/60 hover:text-red-500 group mt-auto"
-              >
-                <LogOut size={18} />
-                <span className="text-xs font-bold uppercase tracking-wider">Log Out</span>
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Header */}
-      <header className="shrink-0 p-4 border-b border-white/10 bg-[#0d0d0d] flex flex-col gap-3 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsMenuOpen(true)}
-              className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-                {isConnected ? "Live" : "Offline"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={isConnected ? stopSession : startSession}
-              disabled={isConnecting}
-              className={cn(
-                "px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all",
-                isConnected ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-              )}
-            >
-              {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
-            </button>
-            <a 
-              href={window.location.href} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white/80 transition-colors"
-              title="Open in New Tab"
-            >
-              <PlayIcon size={14} className="rotate-[-45deg]" />
-            </a>
-          </div>
-        </div>
-
-        {/* Usage Meter */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Tokens</span>
-              <span className="text-xs font-mono text-blue-400">{tokenUsage.total.toLocaleString()}</span>
-            </div>
-            <div className="w-px h-4 bg-white/10" />
-            <div className="flex flex-col">
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Cost</span>
-              <span className="text-xs font-mono text-green-400">
-                ${((tokenUsage.input * 0.0000006) + (tokenUsage.output * 0.0000035)).toFixed(6)}
-              </span>
-            </div>
-            <div className="w-px h-4 bg-white/10" />
-            <button 
-              onClick={() => navigate('/wallet')}
-              className="flex flex-col hover:bg-white/5 p-1 rounded-lg transition-colors cursor-pointer"
-            >
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Wallet</span>
-              <span className="text-xs font-mono text-orange-400">${profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {isScreenSharing && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-blue-400">Sharing</span>
-              </div>
-            )}
-            <div className="flex items-end gap-0.5 h-5 px-1">
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ 
-                    height: isMicOn && isConnected ? Math.max(2, micVolume * (10 + Math.random() * 10)) : 2,
-                    opacity: isMicOn && isConnected ? (micVolume > 0.01 ? 1 : 0.3) : 0.1
-                  }}
-                  transition={{ 
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 20
-                  }}
-                  className={cn(
-                    "w-0.5 rounded-full transition-colors",
-                    isMicOn && isConnected && micVolume > 0.01 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-white/10"
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {activeTab === 'chat' && (
-            <motion.div 
-              key="chat"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-                {messages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-white/10 text-center p-8">
-                    <MessageSquare size={48} className="mb-4 opacity-20" />
-                    <h3 className="text-sm font-bold uppercase tracking-widest mb-2">Gemini Live</h3>
-                    <p className="text-xs max-w-[200px] leading-relaxed">
-                      Start a session to interact with Gemini using voice and screen sharing.
-                    </p>
-                  </div>
-                )}
-                {messages.map((m) => (
-                  <div key={m.id} className={cn(
-                    "flex flex-col max-w-[90%]",
-                    m.role === 'user' ? "ml-auto items-end" : "items-start"
-                  )}>
-                    <div className={cn(
-                      "p-3 rounded-2xl text-xs leading-relaxed shadow-sm",
-                      m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/10 text-white/90 rounded-tl-none"
-                    )}>
-                      <ReactMarkdown>{m.text}</ReactMarkdown>
-                    </div>
-                    <span className="text-[8px] text-white/20 mt-1 px-1 uppercase font-bold">
-                      {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Controls Bar */}
-              <div className="p-4 bg-gradient-to-t from-[#0a0a0a] to-transparent space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  <button 
-                    onClick={toggleMic}
-                    disabled={!isConnected && !isConnecting}
-                    className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isMicOn ? "bg-green-500/10 border-green-500/30 text-green-500" : 
-                      isConnecting ? "bg-white/5 border-white/10 text-white/20 animate-pulse" :
-                      "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
-                    )}
-                  >
-                    {isMicOn ? <Mic size={16} /> : <MicOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">
-                      {isConnecting && !isMicOn ? "Wait..." : "Mic"}
-                    </span>
-                  </button>
-                  <button 
-                    onClick={toggleCamera}
-                    disabled={!isConnected}
-                    className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isCameraOn ? "bg-orange-500/10 border-orange-500/30 text-orange-500" : "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
-                    )}
-                  >
-                    {isCameraOn ? <Video size={16} /> : <VideoOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">Cam</span>
-                  </button>
-                  <button 
-                    onClick={toggleScreenShare}
-                    disabled={!isConnected}
-                    className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isScreenSharing ? "bg-blue-500/10 border-blue-500/30 text-blue-500" : "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
-                    )}
-                  >
-                    {isScreenSharing ? <Monitor size={16} /> : <MonitorOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">Screen</span>
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input 
-                      type="text"
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Type a message..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-4 pr-10 text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
-                    />
-                    <button 
-                      onClick={handleSendMessage}
-                      disabled={!isConnected || !inputText.trim()}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg disabled:text-white/10"
-                    >
-                      <Send size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'logs' && (
-            <motion.div 
-              key="logs"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Terminal size={14} className="text-purple-400" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider">System Logs</h2>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button onClick={copyLogs} className="text-[10px] text-blue-400 hover:text-blue-300 uppercase font-bold tracking-widest">Copy All</button>
-                  <button onClick={() => setLogs([])} className="text-[10px] text-white/20 hover:text-white/60 uppercase font-bold tracking-widest">Clear</button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-2">
-                {logs.length === 0 && (
-                  <div className="h-full flex items-center justify-center text-white/10 italic">No logs recorded yet.</div>
-                )}
-                {logs.map((log) => (
-                  <LogItem key={log.id} log={log} />
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'settings' && (
-            <motion.div 
-              key="settings"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              <div className="p-4 border-b border-white/10 flex items-center gap-2">
-                <Settings size={14} className="text-orange-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider">Settings</h2>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                {/* Voice & Language Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Volume2 size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Voice & Language</h3>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Voice</label>
-                    <select 
-                      value={selectedVoice}
-                      onChange={(e) => setSelectedVoice(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                    >
-                      <option value="Zephyr" className="bg-[#111]">Zephyr (Default)</option>
-                      <option value="Puck" className="bg-[#111]">Puck</option>
-                      <option value="Charon" className="bg-[#111]">Charon</option>
-                      <option value="Kore" className="bg-[#111]">Kore</option>
-                      <option value="Fenrir" className="bg-[#111]">Fenrir</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Language</label>
-                      <select 
-                        value={selectedLanguage}
-                        onChange={(e) => setSelectedLanguage(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                      >
-                        <option value="English" className="bg-[#111]">English</option>
-                        <option value="Hindi" className="bg-[#111]">Hindi</option>
-                        <option value="Tamil" className="bg-[#111]">Tamil</option>
-                        <option value="Spanish" className="bg-[#111]">Spanish</option>
-                        <option value="French" className="bg-[#111]">French</option>
-                        <option value="German" className="bg-[#111]">German</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Accent</label>
-                      <select 
-                        value={selectedAccent}
-                        onChange={(e) => setSelectedAccent(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                      >
-                        <option value="Neutral" className="bg-[#111]">Neutral</option>
-                        <option value="Indian" className="bg-[#111]">Indian</option>
-                        <option value="British" className="bg-[#111]">British</option>
-                        <option value="American" className="bg-[#111]">American</option>
-                        <option value="Australian" className="bg-[#111]">Australian</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mic Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Mic size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Microphone</h3>
-                  </div>
-                  <select 
-                    value={selectedMic}
-                    onChange={(e) => setSelectedMic(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                  >
-                    {devices.map(d => (
-                      <option key={d.deviceId} value={d.deviceId} className="bg-[#111]">{d.label}</option>
-                    ))}
-                  </select>
-                  
-                  <div className="space-y-3">
-                    <button 
-                      onClick={toggleMicTest}
-                      className={cn(
-                        "w-full py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border",
-                        isTestingMic ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                      )}
-                    >
-                      {isTestingMic ? "Stop Test" : "Test Mic Level"}
-                    </button>
-
-                    {isTestingMic && (
-                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
-                          className="h-full bg-green-500"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Screen Share Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Monitor size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Screen Quality</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] uppercase font-bold tracking-widest text-white/30">
-                      <span>JPEG Quality</span>
-                      <span>{Math.round(screenQuality * 100)}%</span>
-                    </div>
-                    <input 
-                      type="range"
-                      min="0.1"
-                      max="1.0"
-                      step="0.1"
-                      value={screenQuality}
-                      onChange={(e) => setScreenQuality(parseFloat(e.target.value))}
-                      className="w-full accent-blue-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] uppercase font-bold tracking-widest text-white/30">
-                      <span>Max Dimension</span>
-                      <span>{screenMaxDimension}px</span>
-                    </div>
-                    <select 
-                      value={screenMaxDimension}
-                      onChange={(e) => setScreenMaxDimension(parseInt(e.target.value))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                    >
-                      <option value="480" className="bg-[#111]">480px (Fastest)</option>
-                      <option value="720" className="bg-[#111]">720px (Balanced)</option>
-                      <option value="1024" className="bg-[#111]">1024px (Standard)</option>
-                      <option value="1280" className="bg-[#111]">1280px (HD)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Speaker Test */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Volume2 size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Audio Output</h3>
-                  </div>
-                  <button 
-                    onClick={testSpeakers}
-                    className="w-full py-2.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:bg-white/10 transition-colors"
-                  >
-                    Test Speaker Sound
-                  </button>
-                </div>
-
-                <div className="pt-8 border-t border-white/5 text-center">
-                  <p className="text-[8px] text-white/20 uppercase font-bold tracking-[0.2em]">Gemini Live Desktop v1.0</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Visual Preview Thumbnail */}
-        <AnimatePresence>
-          {(isScreenSharing || isCameraOn) && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              className="absolute bottom-20 right-4 w-40 aspect-video bg-black border border-white/20 rounded-lg overflow-hidden shadow-2xl z-50 group"
-            >
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-[8px] font-bold uppercase tracking-widest text-white/80">
-                {isScreenSharing ? 'Screen' : 'Camera'}
-              </div>
-              <button 
-                onClick={isScreenSharing ? stopScreenCapture : stopCameraCapture}
-                className="absolute top-1 right-1 p-1 bg-red-500/80 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X size={10} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Hidden Video for Capture (when thumbnail is not active but capture might be starting) */}
-        {!isScreenSharing && !isCameraOn && (
-          <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="shrink-0 h-16 bg-[#0d0d0d] border-t border-white/10 flex items-center justify-around px-4 z-10">
-        <button 
-          onClick={() => setActiveTab('chat')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'chat' ? "text-blue-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <MessageSquare size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Chat</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('logs')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'logs' ? "text-purple-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <Terminal size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Logs</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'settings' ? "text-orange-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <Settings size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Settings</span>
-        </button>
-      </nav>
-    </div>
+    <>
+      <SignedIn>
+        <Routes>
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/records" element={<RecordsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            {/* Fallback */}
+            <Route path="*" element={<Home />} />
+          </Route>
+        </Routes>
+      </SignedIn>
+      <SignedOut>
+        <WelcomeScreen />
+      </SignedOut>
+    </>
   );
 }

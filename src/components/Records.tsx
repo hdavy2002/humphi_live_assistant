@@ -1,32 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useUser } from '@clerk/clerk-react';
 import { History, ArrowLeft, TrendingUp, TrendingDown, Clock, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Transaction } from '../types';
 
 export default function Records() {
+  const { user } = useUser();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (user) {
+      fetchTransactions();
+    }
+  }, [user]);
 
   const fetchTransactions = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    setLoading(true);
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (data) setTransactions(data);
-    setLoading(false);
+    try {
+      const response = await fetch(`/api/wallet/transactions?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(Array.isArray(data) ? data : (data.transactions || []));
+      }
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

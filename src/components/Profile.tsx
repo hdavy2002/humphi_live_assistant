@@ -1,47 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useUser, UserProfile } from '@clerk/clerk-react';
 import { User, Mail, Lock, ArrowLeft, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
+  const { user, isLoaded } = useUser();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [showClerkProfile, setShowClerkProfile] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUser();
-  }, []);
+    if (user) {
+      setEmail(user.primaryEmailAddress?.emailAddress || '');
+    }
+  }, [user]);
 
-  const fetchUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) setEmail(user.email || '');
-  };
+  if (!isLoaded) return <div className="h-screen flex items-center justify-center text-white/10 italic">Loading profile...</div>;
+  if (!user) return <div className="h-screen flex items-center justify-center text-white/10 italic">Please sign in to view your profile.</div>;
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const updates: any = {};
-      if (email) updates.email = email;
-      if (password) updates.password = password;
-
-      const { error } = await supabase.auth.updateUser(updates);
-      if (error) throw error;
-
-      setSuccess('Profile updated successfully!');
-      setPassword('');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    setShowClerkProfile(true);
   };
 
   return (
@@ -54,76 +35,64 @@ export default function Profile() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-8">
-        <div className="flex flex-col items-center py-8">
-          <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mb-4 shadow-2xl">
-            <User className="text-white/20" size={48} />
+        {showClerkProfile ? (
+          <div className="flex flex-col items-center">
+            <UserProfile routing="hash" />
+            <button 
+              onClick={() => setShowClerkProfile(false)}
+              className="mt-4 text-xs font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+            >
+              Back to Summary
+            </button>
           </div>
-          <h2 className="text-lg font-bold tracking-tight">{email}</h2>
-          <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mt-1">User Profile</p>
-        </div>
+        ) : (
+          <div className="space-y-8">
+            <div className="flex flex-col items-center py-8">
+              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mb-4 shadow-2xl overflow-hidden">
+                {user.imageUrl ? (
+                  <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="text-white/20" size={48} />
+                )}
+              </div>
+              <h2 className="text-lg font-bold tracking-tight">{user.fullName || user.username || email}</h2>
+              <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mt-1">User Profile</p>
+            </div>
 
-        <form onSubmit={handleUpdate} className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-white/60">
-              <Mail size={14} />
-              <h3 className="text-[10px] font-bold uppercase tracking-widest">Update Email</h3>
-            </div>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
-              <input 
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-          </div>
+            <div className="space-y-6">
+              <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Mail className="text-white/20" size={18} />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Email Address</span>
+                      <span className="text-sm font-medium">{email}</span>
+                    </div>
+                  </div>
+                  {user.primaryEmailAddress?.verification.status === 'verified' && (
+                    <CheckCircle2 size={16} className="text-green-500" />
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <User className="text-white/20" size={18} />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">User ID</span>
+                    <span className="text-[10px] font-mono break-all text-white/60">{user.id}</span>
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-white/60">
-              <Lock size={14} />
-              <h3 className="text-[10px] font-bold uppercase tracking-widest">Update Password</h3>
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
-              <input 
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
-                placeholder="New Password"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-green-400 text-xs">
-              <CheckCircle2 size={16} />
-              <span>{success}</span>
-            </div>
-          )}
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl"
-          >
-            {loading ? 'Updating...' : (
-              <>
+              <button 
+                onClick={() => setShowClerkProfile(true)}
+                className="w-full bg-white text-black hover:bg-white/90 font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl"
+              >
                 <Save size={18} />
-                <span>Save Changes</span>
-              </>
-            )}
-          </button>
-        </form>
+                <span>Manage Account Settings</span>
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
