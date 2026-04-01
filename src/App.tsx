@@ -5,6 +5,7 @@ import { useSearchParams, Routes, Route, useNavigate, useLocation, Outlet } from
 import WalletPage from "./components/Wallet";
 import RecordsPage from "./components/Records";
 import ProfilePage from "./components/Profile";
+import GeminiLive from "./components/GeminiLive";
 
 function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) {
   return (
@@ -138,8 +139,15 @@ function Home() {
           onClick={handleTopUp}
           disabled={topUpLoading}
         >
-          {topUpLoading ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
+          {topUpLoading ? <Loader2 size={10} className="animate-spin" /> : <PlusCircle size={10} />}
           Top up Wallet
+        </button>
+        <button 
+          className="btn-premium w-full md:w-auto" 
+          onClick={() => navigate('/recordings')}
+        >
+          <Mic size={20} />
+          Start Live Session
         </button>
       </header>
 
@@ -294,6 +302,7 @@ export default function App() {
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/records" element={<RecordsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/recordings" element={<GeminiLive />} />
             {/* Fallback */}
             <Route path="*" element={<Home />} />
           </Route>

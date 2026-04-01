@@ -181,3 +181,65 @@ export const syncMem0 = inngest.createFunction(
     });
   }
 );
+
+// ---------------------------------------------------------------
+// 4. Session Billing Handler
+//    Triggered by /api/session/save.
+//    Calculates cost based on token usage: $1/1M input, $4/1M output.
+// ---------------------------------------------------------------
+export const processSessionBilling = inngest.createFunction(
+  {
+    id: "process-session-billing",
+    name: "Process Session Billing",
+    triggers: [{ event: "session/completed" }],
+  },
+  async ({ event, step }) => {
+    const { userId, tokens } = event.data as {
+      userId: string;
+      tokens: { input: number; output: number };
+    };
+
+    if (!tokens || (tokens.input === 0 && tokens.output === 0)) {
+      console.log(`[Inngest][Billing] No tokens used for user: ${userId}, skipping billing.`);
+      return;
+    }
+
+    // Rates: $1/1M input, $4/1M output
+    const inputCost = tokens.input * 0.000001;
+    const outputCost = tokens.output * 0.000004;
+    const totalCost = inputCost + outputCost;
+
+    const newBalance = await step.run("deduct-session-cost", async () => {
+      const walletRows = await db.execute(
+        sql`SELECT id, balance FROM wallets WHERE user_id = ${userId} LIMIT 1`
+      );
+      const wallet = (walletRows as unknown as any[])[0];
+      if (!wallet) throw new Error(`Wallet not found for billing. User: ${userId}`);
+
+      const currentBalance = parseFloat(wallet.balance ?? "0");
+      const updated = Math.max(0, currentBalance - totalCost);
+
+      await db.execute(
+        sql`UPDATE wallets SET balance = ${updated} WHERE id = ${wallet.id}`
+      );
+
+      // Create usage transaction
+      await db.execute(
+        sql`INSERT INTO transactions (wallet_id, amount, type, status, metadata)
+            VALUES (${wallet.id}, ${-totalCost}, 'usage', 'completed', ${JSON.stringify({ 
+              tokens, 
+              details: `Gemini Live Session: ${tokens.input} input, ${tokens.output} output tokens` 
+            })})`
+      );
+
+      return updated;
+    });
+
+    await step.run("invalidate-profile-cache", async () => {
+      await invalidate(cacheKeys.profile(userId));
+    });
+
+    console.log(`[Inngest][Billing] Deducted $${totalCost.toFixed(6)} from user: ${userId}. New balance: $${newBalance.toFixed(2)}`);
+    return { success: true, userId, totalCost, newBalance };
+  }
+);

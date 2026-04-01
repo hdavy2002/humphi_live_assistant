@@ -13,6 +13,7 @@ import { inngest, provisionUser, processStripeWebhook, syncMem0 } from "./lib/in
 import { clerkWebhooks } from "./routes/webhooks.js";
 import { neonAuthWebhooks } from "./routes/neon-auth-webhooks.js";
 import { getOrSet, invalidate, cacheKeys } from "./lib/cache.js";
+import { authMiddleware, requireAuth } from "../src/infrastructure/auth/clerk.js";
 
 // --- Shared Redis instance (reused across hot invocations) ---
 let redis: Redis | null = null;
@@ -40,6 +41,9 @@ if (process.env.MEM0_API_KEY) {
 }
 
 const app = new Hono().basePath("/api");
+
+// --- Global Auth Middleware ---
+app.use("*", authMiddleware);
 
 // --- Global Rate Limiting Middleware ---
 // Exclude Inngest and webhook paths (they have their own auth and must always respond quickly)
@@ -83,7 +87,7 @@ app.onError((err, c) => {
   return c.json({ error: err.message, stack: process.env.NODE_ENV === 'development' ? err.stack : undefined }, 500);
 });
 
-app.post("/create-checkout-session", async (c) => {
+app.post("/create-checkout-session", requireAuth, async (c) => {
   const { amount, userId } = await c.req.json();
   console.log("Create checkout session request:", { amount, userId });
   
@@ -113,7 +117,7 @@ app.post("/create-checkout-session", async (c) => {
   }
 });
 
-app.post("/create-payment-intent", async (c) => {
+app.post("/create-payment-intent", requireAuth, async (c) => {
   const { amount, userId } = await c.req.json();
   const walletUseCase = getWalletUseCase();
 
@@ -125,7 +129,7 @@ app.post("/create-payment-intent", async (c) => {
   }
 });
 
-app.post("/verify-payment-intent", async (c) => {
+app.post("/verify-payment-intent", requireAuth, async (c) => {
   const { paymentIntentId } = await c.req.json();
   console.log("Verify payment intent request:", { paymentIntentId });
   const walletUseCase = getWalletUseCase();
@@ -140,7 +144,7 @@ app.post("/verify-payment-intent", async (c) => {
   }
 });
 
-app.get("/verify-session", async (c) => {
+app.get("/verify-session", requireAuth, async (c) => {
   const sessionId = c.req.query("sessionId");
   
   if (!sessionId) return c.json({ error: "Missing session ID" }, 400);
@@ -203,6 +207,43 @@ app.post("/webhook", async (c) => {
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return c.json({ error: err.message }, 400);
+  }
+});
+
+// 3. Wallet Routes
+app.get("/wallet/profile", requireAuth, async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+  try {
+    const walletUseCase = getWalletUseCase();
+    const profile = await walletUseCase.getProfile(userId);
+    return c.json(profile);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.get("/wallet/transactions", requireAuth, async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+  try {
+    const walletUseCase = getWalletUseCase();
+    const transactions = await walletUseCase.getTransactions(userId);
+    return c.json(transactions);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.post("/wallet/seed", async (c) => {
+  const { userId, email } = await c.req.json();
+  if (!userId || !email) return c.json({ error: "Missing userId or email" }, 400);
+  try {
+    const walletUseCase = getWalletUseCase();
+    const profile = await walletUseCase.seedWallet(userId, email);
+    return c.json(profile);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
   }
 });
 
@@ -297,7 +338,7 @@ app.get("/diag", async (c) => {
   }
 });
 
-app.get("/session/init", async (c) => {
+app.get("/session/init", requireAuth, async (c) => {
   const userId = c.req.query("userId");
   if (!userId) return c.json({ error: "Missing userId" }, 400);
 
@@ -325,7 +366,7 @@ app.get("/session/init", async (c) => {
   return c.json({ previousHandle, longTermMemory });
 });
 
-app.post("/session/save", async (c) => {
+app.post("/session/save", requireAuth, async (c) => {
   const { userId, newHandle, transcript } = await c.req.json();
   if (!userId) return c.json({ error: "Missing userId" }, 400);
 
