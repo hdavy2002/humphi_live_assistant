@@ -200,8 +200,9 @@ export default function GeminiLive() {
     addLog('info', 'Starting Gemini Live session...');
     
     try {
-      // We need the API key from the environment. Vite exposes it via import.meta.env
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      // We need the API key from the environment.
+      // In this app, vite.config.ts exposes it via process.env.GEMINI_API_KEY
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("VITE_GEMINI_API_KEY not found in environment");
 
       const ai = new GoogleGenAI({ apiKey });
