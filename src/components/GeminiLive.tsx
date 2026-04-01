@@ -83,16 +83,18 @@ export default function GeminiLive() {
 
   const fetchProfile = async () => {
     try {
+      if (!user?.id) return;
       const token = await getToken();
-      const res = await fetch('/api/wallet/profile', {
+      const res = await fetch(`/api/wallet/profile?userId=${user.id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.profile) {
-          // Flattening for the old code structure
+      // The new API endpoint returns the profile object directly 
+      // (no nested 'profile' wrapper, and balance is directly under walletBalance)
+      if (data && data.id) {
           setProfile({
-              ...data.profile,
-              wallet_balance: parseFloat(data.profile.wallet?.balance || "0")
+              ...data,
+              wallet_balance: data.walletBalance || 0
           });
       }
     } catch (err) {
