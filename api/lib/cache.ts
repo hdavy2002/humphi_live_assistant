@@ -1,9 +1,12 @@
 import { Redis } from "@upstash/redis";
 
 let redis: Redis | null = null;
-if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
+let rawRedisUrl = process.env.UPSTASH_REDIS_URL?.trim() || "";
+rawRedisUrl = rawRedisUrl.replace(/^https?:\/\/(https?:\/\/)/, "$1");
+
+if (rawRedisUrl && process.env.UPSTASH_REDIS_TOKEN) {
   redis = new Redis({
-    url: process.env.UPSTASH_REDIS_URL.trim(),
+    url: rawRedisUrl,
     token: process.env.UPSTASH_REDIS_TOKEN.trim(),
   });
 }
