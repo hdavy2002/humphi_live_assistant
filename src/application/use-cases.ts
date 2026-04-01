@@ -104,8 +104,13 @@ export class WalletUseCase {
     }
 
     try {
-      const profile = await this.profileRepo.getById(userId);
-      if (!profile) throw new Error("User profile not found. Are you signed in correctly?");
+      let profile = await this.profileRepo.getById(userId);
+      if (!profile) {
+        // Auto-seed to prevent top-up failures if webhook or explicit seeding didn't happen
+        console.warn(`[WalletUseCase] Auto-seeding profile for userId: ${userId} during verifyPaymentIntent`);
+        await this.profileRepo.create({ id: userId, email: "" });
+        profile = { id: userId, email: "", walletBalance: 0, updatedAt: new Date() };
+      }
 
       const newBalance = profile.walletBalance + amount;
       
@@ -140,8 +145,12 @@ export class WalletUseCase {
         return { success: true, alreadyProcessed: true };
       }
 
-      const profile = await this.profileRepo.getById(userId);
-      if (!profile) throw new Error("Profile not found");
+      let profile = await this.profileRepo.getById(userId);
+      if (!profile) {
+        console.warn(`[WalletUseCase] Auto-seeding profile for userId: ${userId} during verifySession`);
+        await this.profileRepo.create({ id: userId, email: "" });
+        profile = { id: userId, email: "", walletBalance: 0, updatedAt: new Date() };
+      }
 
       const newBalance = profile.walletBalance + amount;
       await this.profileRepo.updateBalance(userId, newBalance);
@@ -184,7 +193,15 @@ export class WalletUseCase {
   async getProfile(userId: string) {
     return await getOrSet(
       cacheKeys.profile(userId),
-      async () => await this.profileRepo.getById(userId)
+      async () => {
+        let profile = await this.profileRepo.getById(userId);
+        if (!profile) {
+          console.warn(`[WalletUseCase] Auto-seeding profile for userId: ${userId} during getProfile`);
+          await this.profileRepo.create({ id: userId, email: "" });
+          profile = { id: userId, email: "", walletBalance: 0, updatedAt: new Date() };
+        }
+        return profile;
+      }
     );
   }
 
