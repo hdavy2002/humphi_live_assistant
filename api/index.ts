@@ -17,14 +17,16 @@ import { authMiddleware, requireAuth } from "../src/infrastructure/auth/clerk.js
 
 // --- Shared Redis instance (reused across hot invocations) ---
 let redis: Redis | null = null;
-let rawRedisUrl = process.env.UPSTASH_REDIS_URL?.trim() || "";
-// Fix common misconfigurations where https:// is duplicated
-rawRedisUrl = rawRedisUrl.replace(/^https?:\/\/(https?:\/\/)/, "$1");
+let rawRedisUrl = (process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_URL || "").trim();
+let rawRedisToken = (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_TOKEN || "").trim();
 
-if (rawRedisUrl && process.env.UPSTASH_REDIS_TOKEN) {
+// Fix common misconfigurations where https:// is duplicated or placeholder text was appended
+rawRedisUrl = rawRedisUrl.replace(/^https?:\/\/(https?:\/\/)/, "$1").replace("our-url.upstash.io", "");
+
+if (rawRedisUrl && rawRedisToken) {
   redis = new Redis({
     url: rawRedisUrl,
-    token: process.env.UPSTASH_REDIS_TOKEN.trim(),
+    token: rawRedisToken,
   });
 }
 

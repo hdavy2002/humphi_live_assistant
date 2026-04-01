@@ -19,10 +19,16 @@ import { sql } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "./src/infrastructure/auth/clerk.js";
 
 let redis: Redis | null = null;
-if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
+let rawRedisUrl = (process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_URL || "").trim();
+let rawRedisToken = (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_TOKEN || "").trim();
+
+// Fix common misconfigurations where https:// is duplicated or placeholder text was appended
+rawRedisUrl = rawRedisUrl.replace(/^https?:\/\/(https?:\/\/)/, "$1").replace("our-url.upstash.io", "");
+
+if (rawRedisUrl && rawRedisToken) {
   redis = new Redis({
-    url: process.env.UPSTASH_REDIS_URL.trim(),
-    token: process.env.UPSTASH_REDIS_TOKEN.trim(),
+    url: rawRedisUrl,
+    token: rawRedisToken,
   });
 }
 
