@@ -55,7 +55,7 @@ function DashboardLayout() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--color-surface, #fef9ed)" }}>
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#fef9ed" }}>
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside
         className="sidebar-panel w-60 flex flex-col shrink-0 overflow-y-auto"
@@ -138,15 +138,15 @@ function DashboardLayout() {
         <div className="flex-1" />
 
         {/* User Card */}
-        <div className="p-3 m-3" style={{ background: "#ede8dc" }}>
+        <div className="p-3 m-3" style={{ background: "#f2ede2" }}>
           <div className="flex items-center gap-3">
             <UserButton afterSignOutUrl="/" />
             <div className="flex flex-col min-w-0 flex-1">
               <span
                 style={{
-                  fontFamily: "'Comfortaa', system-ui, sans-serif",
+                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                   fontWeight: 700,
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   color: "#1d1c15",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -251,7 +251,7 @@ function Home() {
               {user?.firstName || "there"}!
             </span>
           </h1>
-          <p style={{ color: "#3e494c", fontSize: "0.9rem" }}>
+          <p style={{ color: "#3e494c", fontSize: "0.9375rem", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", lineHeight: 1.6 }}>
             Track your AI usage and manage your wallet seamlessly.
           </p>
         </div>
@@ -303,7 +303,7 @@ function Home() {
             >
               <Wallet size={18} />
             </div>
-            <span className="badge badge-success">Active</span>
+            <span className="badge badge-success" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>Active</span>
           </div>
           <p className="section-label">Available Balance</p>
           <p
@@ -335,7 +335,7 @@ function Home() {
               cursor: "pointer",
               padding: 0,
               marginTop: "0.75rem",
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
             }}
           >
             Manage billing <ExternalLink size={12} />
@@ -454,19 +454,20 @@ function Home() {
             key={action.label}
             onClick={action.onClick}
             style={{
-              padding: "1rem",
+              padding: "1.25rem",
               background: action.accent ? "var(--gradient-primary)" : "#f2ede2",
               color: action.accent ? "#fff" : "#3e494c",
-              border: "1px solid rgba(189,200,204,0.2)",
+              border: "none",
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-start",
               gap: "0.5rem",
               cursor: "pointer",
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
-              fontSize: "0.8125rem",
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontSize: "0.875rem",
               fontWeight: 600,
               transition: "transform 0.15s, box-shadow 0.15s",
+              boxShadow: "0 2px 20px rgba(29,28,21,0.05)",
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
@@ -515,7 +516,7 @@ function Home() {
           </button>
         </div>
 
-        <div style={{ background: "#ffffff", border: "1px solid rgba(189,200,204,0.2)", overflow: "hidden" }}>
+        <div style={{ background: "#ffffff", overflow: "hidden", boxShadow: "0 2px 24px rgba(29,28,21,0.05)" }}>
           {transactions.length > 0 ? (
             transactions.slice(0, 5).map((tx) => (
               <div
@@ -559,9 +560,9 @@ function Home() {
                   <div>
                     <p
                       style={{
-                        fontFamily: "'Comfortaa', system-ui, sans-serif",
+                        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                         fontWeight: 600,
-                        fontSize: "0.875rem",
+                        fontSize: "0.9rem",
                         color: "#1d1c15",
                       }}
                     >
@@ -579,8 +580,8 @@ function Home() {
                 <div style={{ textAlign: "right" }}>
                   <span
                     style={{
-                      fontFamily: "'Comfortaa', system-ui, sans-serif",
-                      fontWeight: 700,
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontWeight: 800,
                       fontSize: "0.9375rem",
                       color: tx.amount > 0 ? "#006879" : "#ba1a1a",
                     }}
@@ -608,7 +609,7 @@ function Home() {
               )}
               <p
                 style={{
-                  fontFamily: "'Comfortaa', system-ui, sans-serif",
+                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                   fontWeight: 600,
                   fontSize: "0.875rem",
                   color: "#6e797c",
@@ -646,22 +647,22 @@ function ConnectorsPlaceholder() {
       >
         Connectors
       </h1>
-      <p style={{ color: "#3e494c", marginBottom: "2rem" }}>
+      <p style={{ color: "#3e494c", marginBottom: "2rem", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: "0.9375rem" }}>
         Connect HumPhi to your favourite tools and services.
       </p>
       <div
         style={{
           background: "#f8f3e7",
-          border: "1px solid rgba(189,200,204,0.2)",
-          padding: "4rem 1rem",
+          padding: "5rem 1rem",
           textAlign: "center",
+          boxShadow: "0 2px 20px rgba(29,28,21,0.04)",
         }}
       >
         <PlugZap size={40} style={{ margin: "0 auto 1rem", color: "#bdc8cc" }} />
-        <p style={{ fontWeight: 700, color: "#6e797c", fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+        <p style={{ fontWeight: 700, color: "#6e797c", fontFamily: "'Comfortaa', system-ui, sans-serif", fontSize: "1rem" }}>
           Coming soon
         </p>
-        <p style={{ color: "#bdc8cc", fontSize: "0.875rem", marginTop: 4 }}>
+        <p style={{ color: "#bdc8cc", fontSize: "0.875rem", marginTop: 6, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
           Integrations are being built for you.
         </p>
       </div>
@@ -825,12 +826,11 @@ function WelcomeScreen() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "1.25rem",
-            maxWidth: "700px",
+            gap: "1.5rem",
+            maxWidth: "780px",
             width: "100%",
             marginTop: "4rem",
             paddingTop: "2.5rem",
-            borderTop: "1px solid rgba(189,200,204,0.3)",
           }}
         >
           {[
@@ -884,14 +884,14 @@ function WelcomeScreen() {
                 style={{
                   fontFamily: "'Comfortaa', system-ui, sans-serif",
                   fontWeight: 700,
-                  fontSize: "0.9rem",
+                  fontSize: "0.9375rem",
                   color: "#1d1c15",
-                  marginBottom: "0.25rem",
+                  marginBottom: "0.375rem",
                 }}
               >
                 {f.title}
               </h3>
-              <p style={{ fontSize: "0.8125rem", color: "#3e494c" }}>{f.desc}</p>
+              <p style={{ fontSize: "0.8125rem", color: "#3e494c", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", lineHeight: 1.6 }}>{f.desc}</p>
             </div>
           ))}
         </div>

@@ -1,90 +1,100 @@
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
    STITCH DESIGN SYSTEM — HUMPHI LIVE ASSISTANT
-   Color source: project/14724618938826093165
-   Border-radius override: 5px (user spec)
-   Font: Comfortaa (Google Fonts)
+   Source: project/14724618938826093165 (updated 2026-04-02)
+   Design spec: "Editorial Softness & Intelligent Air"
+   Border-radius: 12px (user override)
+   Headlines: Comfortaa | Body/Labels: Plus Jakarta Sans
    ============================================================ */
 
 @theme {
-  /* ── Primary Teal ──────────────────────────────────────── */
-  --color-primary: #006879;
-  --color-primary-container: #5ec8e0;
-  --color-on-primary: #ffffff;
-  --color-on-primary-container: #005260;
-  --color-inverse-primary: #6cd5ed;
+  /* ── Primary Teal ───────────────────────────────────────── */
+  --color-primary:                  #006879;
+  --color-primary-container:        #5ec8e0;
+  --color-on-primary:               #ffffff;
+  --color-on-primary-container:     #005260;
+  --color-primary-fixed:            #a9edff;
+  --color-primary-fixed-dim:        #6cd5ed;
+  --color-inverse-primary:          #6cd5ed;
 
   /* ── Secondary Orange ──────────────────────────────────── */
-  --color-secondary: #9d4300;
-  --color-secondary-container: #fd761a;
-  --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #5c2400;
+  --color-secondary:                #9d4300;
+  --color-secondary-container:      #fd761a;
+  --color-on-secondary:             #ffffff;
+  --color-on-secondary-container:   #5c2400;
+  --color-secondary-fixed:          #ffdbca;
+  --color-secondary-fixed-dim:      #ffb690;
 
   /* ── Tertiary Gold ─────────────────────────────────────── */
-  --color-tertiary: #755b00;
-  --color-tertiary-container: #e0b52f;
-  --color-on-tertiary: #ffffff;
-  --color-on-tertiary-container: #5c4700;
+  --color-tertiary:                 #755b00;
+  --color-tertiary-container:       #e0b52f;
+  --color-on-tertiary:              #ffffff;
+  --color-on-tertiary-container:    #5c4700;
+  --color-tertiary-fixed:           #ffe08f;
+  --color-tertiary-fixed-dim:       #eec13c;
 
-  /* ── Surfaces ──────────────────────────────────────────── */
-  --color-surface: #fef9ed;
-  --color-surface-bright: #fef9ed;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f8f3e7;
-  --color-surface-container: #f2ede2;
-  --color-surface-container-high: #ede8dc;
-  --color-surface-container-highest: #e7e2d6;
-  --color-surface-dim: #dedace;
-  --color-surface-variant: #e7e2d6;
-  --color-surface-tint: #006879;
+  /* ── Surfaces (Tonal Hierarchy) ────────────────────────── */
+  --color-surface:                  #fef9ed;   /* Level 0 — infinite canvas */
+  --color-surface-bright:           #fef9ed;
+  --color-surface-container-lowest: #ffffff;   /* Floating / glass base */
+  --color-surface-container-low:    #f8f3e7;   /* Level 1 — large blocks */
+  --color-surface-container:        #f2ede2;   /* Level 2 — cards/modules */
+  --color-surface-container-high:   #ede8dc;   /* Level 3 — focus points */
+  --color-surface-container-highest:#e7e2d6;
+  --color-surface-dim:              #dedace;
+  --color-surface-variant:          #e7e2d6;
+  --color-surface-tint:             #006879;
 
   /* ── On Surfaces ───────────────────────────────────────── */
-  --color-on-surface: #1d1c15;
-  --color-on-surface-variant: #3e494c;
-  --color-inverse-surface: #323029;
-  --color-inverse-on-surface: #f5f0e4;
+  --color-on-surface:               #1d1c15;
+  --color-on-surface-variant:       #3e494c;
+  --color-on-background:            #1d1c15;
+  --color-inverse-surface:          #323029;
+  --color-inverse-on-surface:       #f5f0e4;
 
   /* ── Error ─────────────────────────────────────────────── */
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
-  --color-on-error: #ffffff;
-  --color-on-error-container: #93000a;
+  --color-error:                    #ba1a1a;
+  --color-error-container:          #ffdad6;
+  --color-on-error:                 #ffffff;
+  --color-on-error-container:       #93000a;
 
   /* ── Outline ────────────────────────────────────────────── */
-  --color-outline: #6e797c;
-  --color-outline-variant: #bdc8cc;
+  --color-outline:                  #6e797c;
+  --color-outline-variant:          #bdc8cc;
 
-  /* ── Brand aliases (for Tailwind compat) ────────────────── */
-  --color-brand-primary: #006879;
-  --color-brand-accent: #5ec8e0;
-  --color-brand-warm: #fd761a;
-  --color-brand-gold: #e0b52f;
-  --color-text-primary: #1d1c15;
-  --color-text-secondary: #3e494c;
-  --color-text-muted: #6e797c;
-
-  /* ── Font ────────────────────────────────────────────────── */
-  --font-sans: 'Comfortaa', system-ui, sans-serif;
+  /* ── Fonts ──────────────────────────────────────────────── */
+  --font-display:  'Comfortaa', system-ui, sans-serif;
+  --font-sans:     'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body:     'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* ──────────────────────────────────────────────────────────
-   ROOT VARIABLES
+   ROOT CUSTOM PROPERTIES
    ──────────────────────────────────────────────────────────*/
 :root {
-  /* Shadow palette (ambient, tinted with on-surface) */
-  --shadow-subtle:  0 2px 12px  rgba(29, 28, 21, 0.05);
-  --shadow-medium:  0 4px 32px  rgba(29, 28, 21, 0.08);
-  --shadow-strong:  0 8px 60px  rgba(29, 28, 21, 0.12);
+  /* Border radius — user spec: 12px */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-xl:   32px;
+  --radius-full: 9999px;
 
-  /* Glassmorphism override (light mode) */
-  --glass-bg: rgba(255, 255, 255, 0.72);
+  /* Ambient shadows (tinted, very subtle — "felt, not seen") */
+  --shadow-ambient:  0 2px 40px  rgba(29, 28, 21, 0.05);
+  --shadow-elevated: 0 4px 60px  rgba(29, 28, 21, 0.08);
+  --shadow-float:    0 8px 80px  rgba(29, 28, 21, 0.10);
+  --shadow-teal:     0 4px 32px  rgba(0, 104, 121, 0.20);
+
+  /* Glassmorphism (light mode — surface-container-lowest at 70% + blur) */
+  --glass-bg:   rgba(255, 255, 255, 0.70);
   --glass-blur: blur(20px);
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, #006879 0%, #5ec8e0 100%);
-  --gradient-warm: linear-gradient(135deg, #fd761a 0%, #e0b52f 100%);
+  --gradient-warm:    linear-gradient(135deg, #9d4300 0%, #fd761a 100%);
+  --gradient-gold:    linear-gradient(135deg, #755b00 0%, #e0b52f 100%);
   --gradient-surface: linear-gradient(160deg, #fef9ed 0%, #f2ede2 100%);
 }
 
@@ -93,15 +103,20 @@
    ──────────────────────────────────────────────────────────*/
 @layer base {
   *, *::before, *::after {
-    border-radius: 5px !important;   /* USER REQUIREMENT: max 5-6px everywhere */
     box-sizing: border-box;
+    /* 12px radius everywhere — exceptions below */
+    border-radius: 12px !important;
   }
 
-  /* Exceptions: circles (avatars, icon blobs) keep aspect-ratio-based rounding */
+  /* Preserve perfect circles */
   .rounded-full,
-  [class*="rounded-full"] {
+  [class*="rounded-full"],
+  .circle {
     border-radius: 9999px !important;
   }
+
+  /* Tighter radius for small inline chips */
+  .radius-sm { border-radius: 8px !important; }
 
   html {
     -webkit-text-size-adjust: 100%;
@@ -109,136 +124,160 @@
   }
 
   body {
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-size: 1rem;
+    font-weight: 400;
     line-height: 1.6;
     color: #1d1c15;
     background-color: #fef9ed;
-    background-image: none;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  /* Display & Headlines — Comfortaa */
+  h1, h2, h3 {
     font-family: 'Comfortaa', system-ui, sans-serif;
     font-weight: 700;
     color: #1d1c15;
     line-height: 1.2;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
+  /* Sub-headings — Plus Jakarta Sans bold */
+  h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 700;
+    color: #1d1c15;
+    line-height: 1.3;
+  }
+
+  /* Labels / buttons / inputs — Plus Jakarta Sans */
   button, input, textarea, select, label {
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
-  p { color: #3e494c; }
+  p { color: #3e494c; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
   a { color: #006879; text-decoration: none; }
   a:hover { color: #005260; }
 
-  /* Stripe iframe font override */
+  /* Stripe iframe font */
   iframe[name^="__privateStripeFrame"] * {
-    font-family: 'Comfortaa', system-ui, sans-serif !important;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
   }
 }
 
 /* ──────────────────────────────────────────────────────────
-   COMPONENT CLASSES
+   COMPONENT CLASSES — Editorial Softness
+   No hard borders. Separation = background tonal shift.
    ──────────────────────────────────────────────────────────*/
 @layer components {
 
-  /* ── Sidebar Panel ────────────────────────────────────── */
-  .sidebar-panel {
-    background-color: #f8f3e7;
-    border-right: 1px solid rgba(189, 200, 204, 0.25);
-    box-shadow: var(--shadow-subtle);
+  /* ── Layout Surfaces ─────────────────────────────────────
+     No borders! Use tonal hierarchy for containment.         */
+
+  .surface-base {
+    background-color: #fef9ed;    /* Level 0 */
   }
 
-  /* ── Card Surfaces ─────────────────────────────────────── */
-  .card-surface {
-    background-color: #f2ede2;
-    box-shadow: var(--shadow-subtle);
-    border: 1px solid rgba(189, 200, 204, 0.2);
+  .surface-section {
+    background-color: #f8f3e7;    /* Level 1 */
+    padding: 2rem;
+  }
+
+  .surface-card {
+    background-color: #f2ede2;    /* Level 2 */
+    box-shadow: var(--shadow-ambient);
+    padding: 1.5rem;
+    transition: background-color 0.2s;
+  }
+  .surface-card:hover {
+    background-color: #f8f3e7;    /* "sink" instead of lift */
+  }
+
+  .surface-elevated {
+    background-color: #ffffff;    /* Level 3 / floaters */
+    box-shadow: var(--shadow-elevated);
     padding: 1.5rem;
   }
 
-  .card-surface-low {
-    background-color: #f8f3e7;
-    box-shadow: none;
-    border: 1px solid rgba(189, 200, 204, 0.15);
+  .surface-focus {
+    background-color: #ede8dc;    /* Level 3 — critical focus */
+    box-shadow: var(--shadow-ambient);
     padding: 1.5rem;
   }
 
-  .card-elevated {
-    background-color: #ffffff;
-    box-shadow: var(--shadow-medium);
-    border: 1px solid rgba(189, 200, 204, 0.2);
-    padding: 1.5rem;
-  }
-
-  /* ── Glass Panel (light mode) ──────────────────────────── */
+  /* Glass */
   .glass-panel {
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid rgba(189, 200, 204, 0.3);
-    box-shadow: var(--shadow-medium);
+    box-shadow: var(--shadow-float);
   }
 
-  /* ── Primary Button ────────────────────────────────────── */
+  /* ── Sidebar ───────────────────────────────────────────── */
+  .sidebar-panel {
+    background-color: #f8f3e7;
+    box-shadow: var(--shadow-ambient);
+    /* No right border — tonal separation suffices */
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────
+     Corner radius: xl (32px) per Stitch spec.
+     User override applies 12px globally; we keep 12px here. */
+
   .btn-primary {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background: var(--gradient-primary);
     color: #ffffff;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 700;
     font-size: 0.875rem;
     border: none;
     cursor: pointer;
+    box-shadow: var(--shadow-teal);
     transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-    box-shadow: 0 2px 12px rgba(0, 104, 121, 0.25);
+    letter-spacing: 0.01em;
   }
   .btn-primary:hover:not(:disabled) {
-    opacity: 0.92;
+    opacity: 0.90;
     transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(0, 104, 121, 0.35);
+    box-shadow: 0 6px 32px rgba(0, 104, 121, 0.30);
   }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); opacity: 1; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── Secondary Button ──────────────────────────────────── */
   .btn-secondary {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background-color: #f2ede2;
     color: #006879;
-    font-family: 'Comfortaa', system-ui, sans-serif;
-    font-weight: 600;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 700;
     font-size: 0.875rem;
-    border: 1.5px solid rgba(0, 104, 121, 0.3);
+    border: 1.5px solid rgba(0, 104, 121, 0.18);
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
   }
   .btn-secondary:hover:not(:disabled) {
     background-color: #ede8dc;
-    border-color: rgba(0, 104, 121, 0.5);
+    border-color: rgba(0, 104, 121, 0.35);
   }
-  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── Ghost Button ──────────────────────────────────────── */
   .btn-ghost {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background-color: transparent;
     color: #3e494c;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
     border: none;
@@ -250,122 +289,115 @@
     color: #006879;
   }
 
-  /* ── Accent Button (warm orange) ───────────────────────── */
   .btn-accent {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background: var(--gradient-warm);
     color: #ffffff;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 700;
     font-size: 0.875rem;
     border: none;
     cursor: pointer;
+    box-shadow: 0 4px 24px rgba(157, 67, 0, 0.20);
     transition: opacity 0.2s, transform 0.15s;
-    box-shadow: 0 2px 12px rgba(157, 67, 0, 0.2);
   }
-  .btn-accent:hover:not(:disabled) {
-    opacity: 0.92;
-    transform: translateY(-1px);
-  }
-  .btn-accent:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-accent:hover:not(:disabled) { opacity: 0.90; transform: translateY(-1px); }
+  .btn-accent:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── Legacy aliases so existing JSX btn-premium still works ── */
+  /* Legacy aliases — explicit rules (no @apply needed) */
   .btn-premium {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background: var(--gradient-primary);
     color: #ffffff;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 700;
     font-size: 0.875rem;
     border: none;
     cursor: pointer;
-    transition: opacity 0.2s, transform 0.15s;
-    box-shadow: 0 2px 12px rgba(0, 104, 121, 0.25);
+    box-shadow: var(--shadow-teal);
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   }
-  .btn-premium:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
-  .btn-premium:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-premium:hover:not(:disabled) { opacity: 0.90; transform: translateY(-1px); }
+  .btn-premium:disabled { opacity: 0.45; cursor: not-allowed; }
 
   .btn-premium-accent {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     background: var(--gradient-warm);
     color: #ffffff;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 700;
     font-size: 0.875rem;
     border: none;
     cursor: pointer;
+    box-shadow: 0 4px 24px rgba(157, 67, 0, 0.20);
     transition: opacity 0.2s, transform 0.15s;
-    box-shadow: 0 2px 12px rgba(157, 67, 0, 0.2);
   }
-  .btn-premium-accent:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
-  .btn-premium-accent:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-premium-accent:hover:not(:disabled) { opacity: 0.90; transform: translateY(-1px); }
+  .btn-premium-accent:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── Input Field ───────────────────────────────────────── */
+  /* ── Input Fields ─────────────────────────────────────────
+     Fill: surface-container-low. Focus → surface-container-lowest
+     Ghost border (outline-variant @ 15% opacity)               */
+
   .input-field {
     width: 100%;
-    padding: 0.625rem 0.875rem;
-    background-color: #f8f3e7;
-    border: 1.5px solid rgba(189, 200, 204, 0.4);
+    padding: 0.75rem 1rem;
+    background-color: #f8f3e7;    /* surface-container-low */
+    border: 1.5px solid rgba(189, 200, 204, 0.15);  /* ghost border */
     color: #1d1c15;
-    font-family: 'Comfortaa', system-ui, sans-serif;
-    font-size: 0.875rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 400;
     outline: none;
-    transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, background-color 0.2s, box-shadow 0.2s;
   }
   .input-field:focus {
     background-color: #ffffff;
-    border-color: #006879;
-    box-shadow: 0 0 0 3px rgba(0, 104, 121, 0.12);
+    border-color: rgba(0, 104, 121, 0.35);
+    box-shadow: 0 0 0 4px rgba(0, 104, 121, 0.08);
   }
-  .input-field::placeholder { color: #6e797c; }
+  .input-field::placeholder {
+    color: #6e797c;
+    font-weight: 400;
+  }
 
-  /* ── Badge ─────────────────────────────────────────────── */
+  /* ── Badges / Chips ──────────────────────────────────────── */
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.25rem 0.625rem;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    padding: 0.25rem 0.75rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
   }
-  .badge-primary {
-    background-color: rgba(0, 104, 121, 0.1);
-    color: #006879;
-  }
-  .badge-success {
-    background-color: rgba(0, 158, 96, 0.1);
-    color: #00652b;
-  }
-  .badge-warning {
-    background-color: rgba(224, 181, 47, 0.15);
-    color: #755b00;
-  }
-  .badge-error {
-    background-color: rgba(186, 26, 26, 0.1);
-    color: #ba1a1a;
-  }
+  .badge-primary   { background-color: rgba(0, 104, 121, 0.10); color: #006879; }
+  .badge-success   { background-color: rgba(0, 158, 96, 0.10);  color: #006427; }
+  .badge-warning   { background-color: rgba(224, 181, 47, 0.15); color: #755b00; }
+  .badge-error     { background-color: rgba(186, 26, 26, 0.10); color: #ba1a1a; }
+  .badge-orange    { background-color: rgba(253, 118, 26, 0.12); color: #9d4300; }
 
-  /* ── Nav Item (Sidebar) ───────────────────────────────── */
+  /* ── Nav Item (Sidebar) ───────────────────────────────────
+     No icon-only pills — full-width text nav                  */
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.875rem;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
     width: 100%;
     color: #3e494c;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-size: 0.875rem;
     font-weight: 500;
     background: transparent;
@@ -379,20 +411,30 @@
     color: #006879;
   }
   .nav-item-active {
-    background-color: rgba(0, 104, 121, 0.1);
+    background-color: rgba(0, 104, 121, 0.10);
     color: #006879;
     font-weight: 700;
   }
 
-  /* ── Divider ───────────────────────────────────────────── */
-  .divider {
-    height: 1px;
-    background-color: rgba(189, 200, 204, 0.25);
-    border: none;
-    margin: 1rem 0;
+  /* ── Section Label ──────────────────────────────────────── */
+  .section-label {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #6e797c;
   }
 
-  /* ── Table ─────────────────────────────────────────────── */
+  /* ── Divider (use sparingly; prefer whitespace) ─────────── */
+  .divider {
+    height: 1px;
+    background-color: rgba(189, 200, 204, 0.15);  /* ghost */
+    border: none;
+    margin: 1.5rem 0;
+  }
+
+  /* ── Table ──────────────────────────────────────────────── */
   .table-surface {
     width: 100%;
     border-collapse: collapse;
@@ -402,31 +444,36 @@
     background-color: #f8f3e7;
   }
   .table-surface th {
-    padding: 0.75rem 1rem;
-    font-size: 0.7rem;
+    padding: 0.875rem 1.25rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.09em;
     color: #6e797c;
     text-align: left;
   }
   .table-surface td {
-    padding: 0.875rem 1rem;
-    font-size: 0.875rem;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
     color: #1d1c15;
-    border-top: 1px solid rgba(189, 200, 204, 0.2);
+    border-top: 1px solid rgba(189, 200, 204, 0.12);
   }
   .table-surface tbody tr:hover {
     background-color: #f8f3e7;
   }
 
-  /* ── Loading Spinner ───────────────────────────────────── */
-  .spinner {
-    animation: spin 0.8s linear infinite;
-    color: #006879;
+  /* ── Stat Card ──────────────────────────────────────────── */
+  .stat-card {
+    background-color: #f2ede2;
+    box-shadow: var(--shadow-ambient);
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
-  /* ── Toast ─────────────────────────────────────────────── */
+  /* ── Toast ──────────────────────────────────────────────── */
   .toast-success {
     position: fixed;
     bottom: 2rem;
@@ -434,39 +481,29 @@
     transform: translateX(-50%);
     background: var(--gradient-primary);
     color: #ffffff;
-    padding: 0.75rem 1.5rem;
-    font-family: 'Comfortaa', system-ui, sans-serif;
+    padding: 0.875rem 2rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 700;
-    font-size: 0.875rem;
-    box-shadow: var(--shadow-strong);
+    font-size: 0.9rem;
+    box-shadow: var(--shadow-float);
     z-index: 9999;
     animation: slideUp 0.3s ease;
   }
 
-  /* ── Section Label ─────────────────────────────────────── */
-  .section-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #6e797c;
-  }
-
-  /* ── Stat Card ─────────────────────────────────────────── */
-  .stat-card {
-    background-color: #f2ede2;
-    border: 1px solid rgba(189, 200, 204, 0.2);
-    box-shadow: var(--shadow-subtle);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  /* ── AI Pulse Glow ─────────────────────────────────────── */
+  /* ── AI Pulse Glow (voice listening state) ──────────────── */
   .ai-listening-glow {
-    box-shadow: 0 0 40px rgba(253, 118, 26, 0.35), 0 0 80px rgba(253, 118, 26, 0.15);
     animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* ── Transcription Block ────────────────────────────────── */
+  .transcription-block {
+    background-color: #ffffff;
+    box-shadow: var(--shadow-ambient);
+    padding: 1.5rem 2rem;
+    font-family: 'Plus Jakarta Sons', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: #1d1c15;
   }
 }
 
@@ -479,26 +516,33 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateX(-50%) translateY(1rem); }
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(253,118,26,0.3), 0 0 60px rgba(253,118,26,0.12); }
-  50%       { box-shadow: 0 0 50px rgba(253,118,26,0.5), 0 0 100px rgba(253,118,26,0.2); }
+  0%, 100% { box-shadow: 0 0 30px rgba(253,118,26,0.30), 0 0 60px rgba(253,118,26,0.12); }
+  50%       { box-shadow: 0 0 60px rgba(253,118,26,0.50), 0 0 120px rgba(253,118,26,0.22); }
 }
 
 @keyframes float {
   0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-8px); }
+  50%  { transform: translateY(-10px); }
   100% { transform: translateY(0px); }
 }
 
 @keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%       { transform: scale(1.08); opacity: 1; }
+}
+
+/* ── Utility animations ──────────────────────────────────── */
 .animate-float     { animation: float 6s ease-in-out infinite; }
-.animate-fade-in   { animation: fadeSlideIn 0.4s ease forwards; }
-.animate-spin      { animation: spin 0.8s linear infinite; }
+.animate-fade-in   { animation: fadeSlideIn 0.45s ease forwards; }
+.animate-spin      { animation: spin 0.75s linear infinite; }
+.animate-breathe   { animation: breathe 3s ease-in-out infinite; }
