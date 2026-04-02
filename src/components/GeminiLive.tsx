@@ -625,13 +625,13 @@ export default function GeminiLive() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMenuOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden"
             />
             <motion.div 
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              className="absolute top-0 left-0 bottom-0 w-64 bg-[#0d0d0d] border-r border-white/10 z-[70] p-6 flex flex-col"
+              className="absolute top-0 left-0 bottom-0 w-64 bg-[#0d0d0d] border-r border-white/10 z-[70] p-6 flex flex-col lg:hidden"
             >
               <div className="flex items-center gap-3 mb-10">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
@@ -679,90 +679,107 @@ export default function GeminiLive() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <header className="shrink-0 p-4 border-b border-white/10 bg-[#0d0d0d] flex flex-col gap-3 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsMenuOpen(true)}
-              className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-                {isConnected ? "Live" : "Offline"}
-              </span>
-            </div>
+      {/* Unified Control Bar */}
+      <header className="shrink-0 p-3 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20">
+        {/* Left: Connection & Start Button */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/5 min-w-[90px]">
+            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-green-500 animate-pulse" : "bg-white/20")} />
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/60 leading-none">
+              {isConnected ? "Live" : "Offline"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={isConnected ? stopSession : startSession}
-              disabled={isConnecting}
-              className={cn(
-                "px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all",
-                isConnected ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-              )}
-            >
-              {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
-            </button>
-          </div>
+          <button 
+            onClick={isConnected ? stopSession : startSession}
+            disabled={isConnecting}
+            className={cn(
+              "h-9 px-6 rounded-full font-bold text-[10px] uppercase tracking-[0.15em] transition-all flex items-center justify-center",
+              isConnected 
+                ? "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white" 
+                : "bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 active:scale-95"
+            )}
+            style={{ fontFamily: "'Comfortaa', sans-serif" }}
+          >
+            {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
+          </button>
         </div>
 
-        {/* Usage Meter */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Tokens</span>
-              <span className="text-xs font-mono text-blue-400">{tokenUsage.total.toLocaleString()}</span>
-            </div>
-            <div className="w-px h-4 bg-white/10" />
-            <div className="flex flex-col">
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Cost</span>
-              <span className="text-xs font-mono text-green-400">
-                ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(6)}
-              </span>
-            </div>
-            <div className="w-px h-4 bg-white/10" />
-            <button 
-              onClick={() => navigate('/wallet')}
-              className="flex flex-col hover:bg-white/5 p-1 rounded-lg transition-colors cursor-pointer"
-            >
-              <span className="text-[7px] text-white/30 uppercase font-black tracking-widest">Wallet</span>
-              <span className="text-xs font-mono text-orange-400">${profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
-            </button>
+        {/* Center: Usage Metrics */}
+        <div className="hidden md:flex items-center gap-8 px-6 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+          <div className="flex flex-col items-center">
+            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Tokens</span>
+            <span className="text-[11px] font-mono font-bold text-blue-400 leading-none">{tokenUsage.total.toLocaleString()}</span>
           </div>
-          
-          <div className="flex items-center gap-3">
-            {isScreenSharing && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-blue-400">Sharing</span>
-              </div>
+          <div className="w-px h-5 bg-white/10" />
+          <div className="flex flex-col items-center">
+            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Cost</span>
+            <span className="text-[11px] font-mono font-bold text-green-400 leading-none">
+              ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
+            </span>
+          </div>
+          <div className="w-px h-5 bg-white/10" />
+          <button 
+            onClick={() => navigate('/wallet')}
+            className="flex flex-col items-center group transition-colors"
+          >
+            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5 transition-colors group-hover:text-orange-400">Wallet</span>
+            <span className="text-[11px] font-mono font-bold text-orange-400 leading-none group-active:scale-95 transition-transform">
+              ${profile?.wallet_balance?.toFixed(2) || '0.00'}
+            </span>
+          </button>
+        </div>
+
+        {/* Right: Media Controls */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-end gap-1 h-6 px-3 mr-2 border-r border-white/10">
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                animate={{ 
+                  height: isMicOn && isConnected ? Math.max(3, micVolume * (15 + Math.random() * 15)) : 3,
+                  opacity: isMicOn && isConnected ? 1 : 0.2
+                }}
+                className={cn(
+                  "w-0.5 rounded-full bg-blue-500",
+                  (!isMicOn || !isConnected) && "bg-white/20"
+                )}
+              />
+            ))}
+          </div>
+
+          <button 
+            onClick={toggleMic}
+            className={cn(
+              "p-2.5 rounded-lg transition-all active:scale-90",
+              isMicOn ? "text-blue-400 bg-blue-400/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]" : "text-white/20 hover:text-white/40 bg-white/5"
             )}
-            <div className="flex items-end gap-0.5 h-5 px-1">
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ 
-                    height: isMicOn && isConnected ? Math.max(2, micVolume * (10 + Math.random() * 10)) : 2,
-                    opacity: isMicOn && isConnected ? (micVolume > 0.01 ? 1 : 0.3) : 0.1
-                  }}
-                  transition={{ 
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 20
-                  }}
-                  className={cn(
-                    "w-0.5 rounded-full transition-colors",
-                    isMicOn && isConnected && micVolume > 0.01 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-white/10"
-                  )}
-                />
-              ))}
-            </div>
-          </div>
+            title="Toggle Microphone"
+          >
+            {isMicOn ? <Mic size={18} /> : <MicOff size={18} />}
+          </button>
+
+          <button 
+            onClick={toggleScreenShare}
+            className={cn(
+              "p-2.5 rounded-lg transition-all active:scale-90",
+              isScreenSharing ? "text-green-400 bg-green-400/10" : "text-white/20 hover:text-white/40 bg-white/5"
+            )}
+            title="Share Screen"
+          >
+            <Monitor size={18} />
+          </button>
+
+          <button 
+            onClick={toggleCamera}
+            className={cn(
+              "p-2.5 rounded-lg transition-all active:scale-90",
+              isCameraOn ? "text-purple-400 bg-purple-400/10" : "text-white/20 hover:text-white/40 bg-white/5"
+            )}
+            title="Toggle Camera"
+          >
+            <Video size={18} />
+          </button>
         </div>
       </header>
 
@@ -1105,18 +1122,8 @@ export default function GeminiLive() {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="shrink-0 h-16 bg-[#0d0d0d] border-t border-white/10 flex items-center justify-around px-4 z-10">
-        <button 
-          onClick={() => setActiveTab('chat')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'chat' ? "text-blue-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <MessageSquare size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Chat</span>
-        </button>
+      {/* Bottom Navigation (Tablet/Desktop Hidden?) */}
+      <nav className="shrink-0 h-16 bg-[#0d0d0d] border-t border-white/10 flex items-center justify-around px-4 z-10 lg:hidden">
         <button 
           onClick={() => setActiveTab('logs')}
           className={cn(

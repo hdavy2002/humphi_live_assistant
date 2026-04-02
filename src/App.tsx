@@ -1,9 +1,9 @@
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, useClerk } from "@clerk/clerk-react";
 import {
   LayoutDashboard, Wallet, Mic, History, Settings,
   ExternalLink, PlusCircle, CreditCard, Loader2,
   PlugZap, TrendingUp, Activity, Zap,
-  ArrowUpRight, Shield, Star, ChevronRight, Monitor, Menu, X
+  ArrowUpRight, Shield, Star, ChevronRight, Monitor, Menu, X, ScrollText
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -45,6 +45,7 @@ function SidebarItem({
    ──────────────────────────────────────────────────────────*/
 function DashboardLayout() {
   const { user } = useUser();
+  const { signOut } = useClerk();
   const navigate  = useNavigate();
   const location  = useLocation();
   const activeTab = location.pathname;
@@ -59,6 +60,7 @@ function DashboardLayout() {
     { icon: Mic,             label: "Live Session",     path: "/recordings" },
     { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
     { icon: Wallet,          label: "Wallet",           path: "/wallet" },
+    { icon: ScrollText,      label: "Logs",             path: "/logs" },
   ];
 
   const isActive = (path: string) =>
@@ -148,6 +150,13 @@ function DashboardLayout() {
               active={activeTab === "/profile"}
               onClick={() => navigate("/profile")}
             />
+            <button 
+              onClick={() => signOut(() => navigate("/"))}
+              className="nav-item group w-full text-left"
+            >
+              <ArrowUpRight size={17} className="group-hover:text-red-400 transition-colors" />
+              <span>Log Out</span>
+            </button>
           </nav>
         </div>
 
@@ -155,10 +164,11 @@ function DashboardLayout() {
 
         {/* User Card */}
         <div
-          className="p-3 m-3 sidebar-user-info"
+          className="p-3 m-3 sidebar-user-info hidden lg:block"
           style={{
             background: "rgba(255,255,255,0.07)",
             border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: "16px"
           }}
         >
           <div className="flex items-center gap-3">
@@ -171,7 +181,7 @@ function DashboardLayout() {
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
               >
-                {user?.firstName || "User"}
+                {user?.fullName || user?.username || "User"}
               </span>
               <span style={{ fontSize: "0.625rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em", color: "#22C9E8" }}>
                 Premium Plan
