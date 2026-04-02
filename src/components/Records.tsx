@@ -39,7 +39,7 @@ export default function Records() {
   });
 
   return (
-    <div style={{ padding: '1.5rem 2rem', maxWidth: 800, margin: '0 auto' }}>
+    <div className="p-4 pt-16 md:pt-8 md:p-8" style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* ── Page Header ───────────────────────────────── */}
       <div
         style={{
@@ -54,7 +54,6 @@ export default function Records() {
         <div>
           <h1
             style={{
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: '1.875rem',
               color: '#0D1117',
@@ -64,9 +63,10 @@ export default function Records() {
           >
             Transaction History
           </h1>
-          <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+          <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500 }}>
             All your wallet activity in one place.
           </p>
+
         </div>
 
         {/* Filter tabs */}
@@ -90,7 +90,6 @@ export default function Records() {
                 color: filter === f ? '#0D1117' : 'rgba(255,255,255,0.50)',
                 border: 'none',
                 cursor: 'pointer',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontSize: '0.8125rem',
                 fontWeight: 700,
                 textTransform: 'capitalize',
@@ -98,6 +97,7 @@ export default function Records() {
                 borderRadius: '9px',
               }}
             >
+
               {f === 'all' ? 'All' : f === 'topup' ? 'Top-ups' : 'Usage'}
             </button>
           ))}
@@ -175,7 +175,6 @@ export default function Records() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 color: 'rgba(255,255,255,0.40)',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
               }}
             >
               Transaction
@@ -187,11 +186,11 @@ export default function Records() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 color: 'rgba(255,255,255,0.40)',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
               }}
             >
               Amount
             </span>
+
           </div>
 
           {/* Rows */}
@@ -235,7 +234,6 @@ export default function Records() {
                   <div>
                     <p
                       style={{
-                        fontFamily: "'Comfortaa', system-ui, sans-serif",
                         fontWeight: 600,
                         fontSize: '0.9375rem',
                         color: '#0D1117',
@@ -254,7 +252,6 @@ export default function Records() {
                         fontWeight: 600,
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
-                        fontFamily: "'Comfortaa', system-ui, sans-serif",
                       }}
                     >
                       <Clock size={10} />
@@ -266,6 +263,7 @@ export default function Records() {
                         })}
                       </span>
                     </div>
+
                   </div>
                 </div>
 
@@ -273,7 +271,6 @@ export default function Records() {
                 <div style={{ textAlign: 'right' }}>
                   <p
                     style={{
-                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                       fontWeight: 800,
                       fontSize: '1rem',
                       color: isCredit ? '#22C9E8' : '#FF6619',
@@ -288,11 +285,11 @@ export default function Records() {
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
                       color: '#C2D4DC',
-                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                     }}
                   >
                     {tx.status}
                   </span>
+
                 </div>
               </motion.div>
             );

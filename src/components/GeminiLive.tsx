@@ -615,7 +615,7 @@ export default function GeminiLive() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden max-w-[450px] mx-auto border-x border-white/5 shadow-2xl relative">
+    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative">
       {/* Hamburger Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (

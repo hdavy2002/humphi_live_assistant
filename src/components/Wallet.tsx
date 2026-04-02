@@ -223,7 +223,7 @@ export default function Wallet() {
   const presets = ['5', '10', '20', '50', '100', '200'];
 
   return (
-    <div style={{ padding: '1.5rem 2rem', maxWidth: 640, margin: '0 auto' }}>
+    <div className="p-4 pt-16 md:pt-8 md:p-8" style={{ maxWidth: 640, margin: '0 auto' }}>
       {/* ── Page Header ───────────────────────────────── */}
       <div style={{ marginBottom: '2rem' }}>
         <h1

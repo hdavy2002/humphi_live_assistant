@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Wallet, Mic, History, Settings,
   ExternalLink, PlusCircle, CreditCard, Loader2,
   PlugZap, TrendingUp, Activity, Zap,
-  ArrowUpRight, Shield, Star, ChevronRight, Monitor
+  ArrowUpRight, Shield, Star, ChevronRight, Monitor, Menu, X
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -26,7 +26,9 @@ function SidebarItem({
   label: string;
   active?: boolean;
   onClick?: () => void;
+  key?: string | number;
 }) {
+
   return (
     <button
       onClick={onClick}
@@ -46,40 +48,57 @@ function DashboardLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const activeTab = location.pathname;
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close drawer on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard",         path: "/" },
-    { icon: History,         label: "Chat History",      path: "/records" },
-    { icon: Mic,             label: "Live Session",      path: "/recordings" },
-    { icon: PlugZap,         label: "Connectors",        path: "/connectors" },
-    { icon: Wallet,          label: "Wallet & Billing",  path: "/wallet" },
+    { icon: LayoutDashboard, label: "Dashboard",        path: "/" },
+    { icon: History,         label: "Chat History",     path: "/records" },
+    { icon: Mic,             label: "Live Session",     path: "/recordings" },
+    { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
+    { icon: Wallet,          label: "Wallet",           path: "/wallet" },
   ];
 
+  const isActive = (path: string) =>
+    path === "/" ? activeTab === "/" : activeTab.startsWith(path);
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#22C9E8" }}>
-      {/* ── Dark Navy Sidebar ──────────────────────────────── */}
+    <div className="app-shell">
+
+      {/* ── Mobile overlay ─────────────────────────────── */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? "open" : ""}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      {/* ── Hamburger (mobile only) ─────────────────────── */}
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-label="Toggle menu"
+      >
+        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
+
+      {/* ── Dark Navy Sidebar ──────────────────────────── */}
       <aside
-        className="sidebar-panel w-60 flex flex-col shrink-0 overflow-y-auto"
+        className={`sidebar-nav ${mobileOpen ? "mobile-open" : ""}`}
         style={{ background: "linear-gradient(180deg, #0D1117 0%, #1A2232 100%)" }}
       >
         {/* Logo */}
         <div
-          className="px-5 pt-6 pb-5 cursor-pointer flex items-center gap-2.5"
+          className="sidebar-logo-wrap px-5 pt-6 pb-5 cursor-pointer flex items-center gap-2.5"
           onClick={() => navigate("/")}
         >
           {/* φ icon */}
           <div
+            className="flex items-center justify-center text-white"
             style={{
-              width: 36,
-              height: 36,
+              width: 36, height: 36,
               background: "linear-gradient(135deg, #22C9E8, #0AABCA)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#0D1117",
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
-              fontWeight: 800,
-              fontSize: 18,
+              fontWeight: 800, fontSize: 18,
               flexShrink: 0,
               boxShadow: "0 4px 16px rgba(34,201,232,0.40)",
             }}
@@ -87,35 +106,30 @@ function DashboardLayout() {
             φ
           </div>
           <span
+            className="sidebar-logo-text"
             style={{
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
-              fontWeight: 800,
-              fontSize: "1.1rem",
-              color: "#FFFFFF",
-              letterSpacing: "-0.02em",
+              fontWeight: 800, fontSize: "1.1rem",
+              color: "#FFFFFF", letterSpacing: "-0.02em",
             }}
           >
             hum<span style={{ color: "#FF6619" }}>φ</span>
           </span>
         </div>
 
+
         {/* Divider */}
         <div className="divider mx-4" />
 
         {/* Nav */}
         <div className="px-3">
-          <p className="section-label-dark px-2 mb-2">Navigation</p>
+          <p className="section-label-dark sidebar-section-label px-2 mb-2">Navigation</p>
           <nav className="space-y-0.5">
             {navItems.map((item) => (
               <SidebarItem
                 key={item.path}
                 icon={item.icon}
                 label={item.label}
-                active={
-                  item.path === "/"
-                    ? activeTab === "/"
-                    : activeTab.startsWith(item.path)
-                }
+                active={isActive(item.path)}
                 onClick={() => navigate(item.path)}
               />
             ))}
@@ -126,7 +140,7 @@ function DashboardLayout() {
 
         {/* Account */}
         <div className="px-3">
-          <p className="section-label-dark px-2 mb-2">Account</p>
+          <p className="section-label-dark sidebar-section-label px-2 mb-2">Account</p>
           <nav className="space-y-0.5">
             <SidebarItem
               icon={Settings}
@@ -141,7 +155,7 @@ function DashboardLayout() {
 
         {/* User Card */}
         <div
-          className="p-3 m-3"
+          className="p-3 m-3 sidebar-user-info"
           style={{
             background: "rgba(255,255,255,0.07)",
             border: "1px solid rgba(255,255,255,0.10)",
@@ -152,38 +166,49 @@ function DashboardLayout() {
             <div className="flex flex-col min-w-0 flex-1">
               <span
                 style={{
-                  fontFamily: "'Comfortaa', system-ui, sans-serif",
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
+                  fontWeight: 700, fontSize: "0.875rem",
                   color: "#FFFFFF",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
               >
                 {user?.firstName || "User"}
               </span>
-              <span style={{
-                fontSize: "0.625rem",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.09em",
-                color: "#22C9E8",
-              }}>
+              <span style={{ fontSize: "0.625rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em", color: "#22C9E8" }}>
                 Premium Plan
               </span>
             </div>
           </div>
         </div>
+
+
+        {/* Tablet: user avatar only (no text) */}
+        <div className="sidebar-user-wrap p-3 flex items-center justify-center">
+          <UserButton afterSignOutUrl="/" />
+        </div>
+
       </aside>
 
-      {/* ── Main Content (cyan background) ────────────────── */}
+      {/* ── Main Content ────────────────────────────────── */}
       <main
-        className="flex-1 overflow-y-auto relative"
+        className="main-scroll"
         style={{ backgroundColor: "#22C9E8" }}
       >
         <Outlet />
       </main>
+
+      {/* ── Bottom Tab Bar (mobile only) ─────────────────── */}
+      <nav className="bottom-tab-bar">
+        {[...navItems, { icon: Settings, label: "Settings", path: "/profile" }].map((item) => (
+          <button
+            key={item.path}
+            className={isActive(item.path) ? "tab-active" : ""}
+            onClick={() => navigate(item.path)}
+          >
+            <item.icon size={20} strokeWidth={isActive(item.path) ? 2.5 : 1.8} />
+            <span>{item.label.split(" ")[0]}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
@@ -248,14 +273,13 @@ function Home() {
   }, [user?.id, searchParams]);
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 pt-16 md:pt-8 lg:p-8 max-w-5xl mx-auto">
 
       {/* ── Header ───────────────────────────────────────── */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1
             style={{
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.875rem",
               color: "#0D1117",
@@ -271,14 +295,14 @@ function Home() {
           <p style={{
             color: "#1A2232",
             fontSize: "1rem",
-            fontFamily: "'Comfortaa', system-ui, sans-serif",
             lineHeight: 1.6,
             fontWeight: 500,
           }}>
             Manage your AI usage and wallet from one place.
           </p>
+
         </div>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap btn-group-row">
           <button
             className="btn-primary"
             onClick={() => navigate("/wallet")}
@@ -297,7 +321,7 @@ function Home() {
       </header>
 
       {/* ── Stats Grid ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-stats grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 
         {/* Wallet Balance — dark navy card */}
         <div
@@ -495,7 +519,7 @@ function Home() {
       </div>
 
       {/* ── Quick Actions ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-quick grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
           { icon: Zap,      label: "Start Live Session", onClick: () => navigate("/recordings"), variant: "cta" },
           { icon: History,  label: "Chat History",        onClick: () => navigate("/records"),    variant: "white" },

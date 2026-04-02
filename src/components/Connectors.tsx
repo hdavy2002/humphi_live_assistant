@@ -57,9 +57,9 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
             fontWeight: 800,
             letterSpacing: '0.09em',
             textTransform: 'uppercase',
-            fontFamily: "'Comfortaa', system-ui, sans-serif",
             ...badgeStyle[connector.badge],
           }}
+
         >
           {connector.badge}
         </span>
@@ -85,7 +85,6 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
       <div>
         <h3
           style={{
-            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontWeight: 800,
             fontSize: '1.0625rem',
             color: '#0D1117',
@@ -97,7 +96,6 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
         </h3>
         <p
           style={{
-            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontSize: '0.875rem',
             color: '#4a6070',
             lineHeight: 1.6,
@@ -106,6 +104,7 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
         >
           {connector.description}
         </p>
+
       </div>
 
       {/* Action Button */}
@@ -120,10 +119,10 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
             ? 'transparent'
             : 'linear-gradient(135deg, #0D1117, #1A2232)',
           color: connector.connected ? '#22C9E8' : '#ffffff',
-          fontFamily: "'Comfortaa', system-ui, sans-serif",
           fontWeight: 700,
           fontSize: '0.875rem',
           cursor: 'pointer',
+
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -227,7 +226,7 @@ export default function Connectors() {
   const connectedCount = connectors.filter((c) => c.connected).length;
 
   return (
-    <div style={{ padding: '2rem 2rem 4rem', maxWidth: 900, margin: '0 auto' }}>
+    <div className="p-4 pt-16 md:pt-8 md:p-8" style={{ maxWidth: 900, margin: '0 auto' }}>
       {/* ── Header ───────────────────────────────────────── */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
@@ -317,14 +316,7 @@ export default function Connectors() {
       </div>
 
       {/* ── Grid ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2.5rem',
-        }}
-      >
+      <div className="grid grid-connectors" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px,100%), 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
         {filtered.map((connector, i) => (
           <motion.div key={connector.id} transition={{ delay: i * 0.06 }}>
             <ConnectorCard connector={connector} onToggle={toggle} />
@@ -440,8 +432,8 @@ export default function Connectors() {
           </button>
         </div>
 
-        {/* Decorative circuit icon */}
         <div
+          className="connector-cta-icon"
           style={{
             position: 'relative',
             zIndex: 1,
