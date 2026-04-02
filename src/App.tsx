@@ -58,7 +58,7 @@ function DashboardLayout() {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard",        path: "/" },
-    { icon: History,         label: "Chat History",     path: "/records" },
+    { icon: Monitor,         label: "Recordings",       path: "/records" },
     { icon: Mic,             label: "Live Session",     path: "/recordings" },
     { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
     { icon: Wallet,          label: "Wallet",           path: "/wallet" },

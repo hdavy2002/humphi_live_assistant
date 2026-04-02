@@ -33,3 +33,15 @@ export interface Transaction {
   created_at: string;
   stripe_session_id?: string;
 }
+
+export interface Recording {
+  id: string;
+  user_id: string;
+  title: string;
+  timestamp: string;
+  duration: string;
+  thumbnail_url?: string;
+  sync_status: 'local' | 'syncing' | 'cloud';
+  bunny_stream_id?: string;
+  size_bytes?: number;
+}
