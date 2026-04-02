@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { History, TrendingUp, TrendingDown, Clock, Loader2, Search } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, Clock, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
 import { Transaction } from '../types';
 
 export default function Records() {
@@ -10,7 +9,6 @@ export default function Records() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'topup' | 'usage'>('all');
-  const navigate = useNavigate();
 
   /* ── Data fetching — UNCHANGED ── */
   useEffect(() => {
@@ -56,16 +54,17 @@ export default function Records() {
         <div>
           <h1
             style={{
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
-              fontWeight: 700,
-              fontSize: '1.5rem',
-              color: '#1d1c15',
+              fontFamily: "'Sora', system-ui, sans-serif",
+              fontWeight: 800,
+              fontSize: '1.875rem',
+              color: '#0D1117',
               marginBottom: '0.25rem',
+              letterSpacing: '-0.03em',
             }}
           >
             Transaction History
           </h1>
-          <p style={{ color: '#3e494c', fontSize: '0.875rem' }}>
+          <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
             All your wallet activity in one place.
           </p>
         </div>
@@ -74,10 +73,11 @@ export default function Records() {
         <div
           style={{
             display: 'flex',
-            background: '#f2ede2',
-            border: '1px solid rgba(189,200,204,0.25)',
+            background: '#0D1117',
+            border: '1.5px solid rgba(34,201,232,0.20)',
             padding: '3px',
             gap: '2px',
+            borderRadius: '12px',
           }}
         >
           {(['all', 'topup', 'usage'] as const).map((f) => (
@@ -85,16 +85,17 @@ export default function Records() {
               key={f}
               onClick={() => setFilter(f)}
               style={{
-                padding: '0.4rem 0.875rem',
-                background: filter === f ? '#006879' : 'transparent',
-                color: filter === f ? '#ffffff' : '#6e797c',
+                padding: '0.4rem 0.9rem',
+                background: filter === f ? '#22C9E8' : 'transparent',
+                color: filter === f ? '#0D1117' : 'rgba(255,255,255,0.50)',
                 border: 'none',
                 cursor: 'pointer',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
-                fontSize: '0.75rem',
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontSize: '0.8125rem',
                 fontWeight: 700,
                 textTransform: 'capitalize',
                 transition: 'all 0.15s',
+                borderRadius: '9px',
               }}
             >
               {f === 'all' ? 'All' : f === 'topup' ? 'Top-ups' : 'Usage'}
@@ -115,8 +116,8 @@ export default function Records() {
             gap: '0.75rem',
           }}
         >
-          <Loader2 size={28} className="animate-spin" style={{ color: '#bdc8cc' }} />
-          <p style={{ color: '#6e797c', fontSize: '0.875rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+          <Loader2 size={28} className="animate-spin" style={{ color: '#22C9E8' }} />
+          <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
             Loading transactions...
           </p>
         </div>
@@ -125,23 +126,24 @@ export default function Records() {
           style={{
             padding: '5rem 1rem',
             textAlign: 'center',
-            background: '#f8f3e7',
-            border: '1px solid rgba(189,200,204,0.2)',
+            background: '#ffffff',
+            boxShadow: '0 4px 24px rgba(13,17,23,0.08)',
+            borderRadius: '12px',
           }}
         >
-          <History size={36} style={{ margin: '0 auto 1rem', color: '#bdc8cc' }} />
+          <History size={36} style={{ margin: '0 auto 1rem', color: '#E2EBF0' }} />
           <p
             style={{
-              fontFamily: "'Comfortaa', system-ui, sans-serif",
+              fontFamily: "'Sora', system-ui, sans-serif",
               fontWeight: 700,
-              fontSize: '0.9375rem',
-              color: '#6e797c',
+              fontSize: '1rem',
+              color: '#0D1117',
               marginBottom: '0.375rem',
             }}
           >
             No Records
           </p>
-          <p style={{ color: '#bdc8cc', fontSize: '0.8125rem' }}>
+          <p style={{ color: '#7a9aa8', fontSize: '0.875rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
             {filter === 'all'
               ? 'Your transaction history will appear here.'
               : `No ${filter === 'topup' ? 'top-up' : 'usage'} transactions found.`}
@@ -151,8 +153,9 @@ export default function Records() {
         <div
           style={{
             background: '#ffffff',
-            border: '1px solid rgba(189,200,204,0.2)',
+            boxShadow: '0 4px 24px rgba(13,17,23,0.08)',
             overflow: 'hidden',
+            borderRadius: '12px',
           }}
         >
           {/* Table Header */}
@@ -160,29 +163,31 @@ export default function Records() {
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr auto',
-              padding: '0.625rem 1.25rem',
-              background: '#f8f3e7',
-              borderBottom: '1px solid rgba(189,200,204,0.2)',
+              padding: '0.75rem 1.25rem',
+              background: '#0D1117',
+              borderBottom: '1px solid rgba(34,201,232,0.12)',
             }}
           >
             <span
               style={{
-                fontSize: '0.65rem',
+                fontSize: '0.6rem',
                 fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.07em',
-                color: '#6e797c',
+                letterSpacing: '0.09em',
+                color: 'rgba(255,255,255,0.40)',
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
               }}
             >
               Transaction
             </span>
             <span
               style={{
-                fontSize: '0.65rem',
+                fontSize: '0.6rem',
                 fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.07em',
-                color: '#6e797c',
+                letterSpacing: '0.09em',
+                color: 'rgba(255,255,255,0.40)',
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
               }}
             >
               Amount
@@ -202,12 +207,12 @@ export default function Records() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '0.875rem 1.25rem',
-                  borderBottom: '1px solid rgba(189,200,204,0.15)',
+                  padding: '1rem 1.25rem',
+                  borderBottom: '1px solid #EEF4F7',
                   cursor: 'default',
                   transition: 'background-color 0.15s',
                 }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.backgroundColor = '#f8f3e7')}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.backgroundColor = '#F7FAFC')}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.backgroundColor = '')}
               >
                 {/* Left */}
@@ -219,9 +224,10 @@ export default function Records() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: isCredit ? 'rgba(0,104,121,0.1)' : 'rgba(157,67,0,0.1)',
-                      color: isCredit ? '#006879' : '#9d4300',
+                      background: isCredit ? 'rgba(34,201,232,0.10)' : 'rgba(255,102,25,0.10)',
+                      color: isCredit ? '#22C9E8' : '#FF6619',
                       flexShrink: 0,
+                      borderRadius: '8px',
                     }}
                   >
                     {isCredit ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
@@ -229,10 +235,10 @@ export default function Records() {
                   <div>
                     <p
                       style={{
-                        fontFamily: "'Comfortaa', system-ui, sans-serif",
+                        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                         fontWeight: 600,
-                        fontSize: '0.875rem',
-                        color: '#1d1c15',
+                        fontSize: '0.9375rem',
+                        color: '#0D1117',
                         marginBottom: '0.2rem',
                       }}
                     >
@@ -243,11 +249,12 @@ export default function Records() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.375rem',
-                        color: '#6e797c',
+                        color: '#7a9aa8',
                         fontSize: '0.7rem',
-                        fontWeight: 700,
+                        fontWeight: 600,
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
+                        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                       }}
                     >
                       <Clock size={10} />
@@ -266,10 +273,10 @@ export default function Records() {
                 <div style={{ textAlign: 'right' }}>
                   <p
                     style={{
-                      fontFamily: "'Comfortaa', system-ui, sans-serif",
-                      fontWeight: 700,
-                      fontSize: '0.9375rem',
-                      color: isCredit ? '#006879' : '#ba1a1a',
+                      fontFamily: "'Sora', system-ui, sans-serif",
+                      fontWeight: 800,
+                      fontSize: '1rem',
+                      color: isCredit ? '#22C9E8' : '#FF6619',
                     }}
                   >
                     {isCredit ? '+' : '-'}${tx.amount.toFixed(2)}
@@ -280,7 +287,8 @@ export default function Records() {
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
-                      color: '#bdc8cc',
+                      color: '#C2D4DC',
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                     }}
                   >
                     {tx.status}

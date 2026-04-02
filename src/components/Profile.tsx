@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser, UserProfile } from '@clerk/clerk-react';
-import { User, Mail, Shield, ChevronRight, CheckCircle2, Loader2, LogOut } from 'lucide-react';
+import { User, Mail, Shield, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,8 +29,8 @@ export default function Profile() {
           gap: '0.75rem',
         }}
       >
-        <Loader2 size={24} className="animate-spin" style={{ color: '#bdc8cc' }} />
-        <p style={{ color: '#6e797c', fontSize: '0.875rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+        <Loader2 size={24} className="animate-spin" style={{ color: '#22C9E8' }} />
+        <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
           Loading profile...
         </p>
       </div>
@@ -44,8 +44,8 @@ export default function Profile() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#6e797c',
-          fontFamily: "'Comfortaa', system-ui, sans-serif",
+          color: '#7a9aa8',
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         }}
       >
         Please sign in to view your profile.
@@ -57,6 +57,7 @@ export default function Profile() {
     e.preventDefault();
     setShowClerkProfile(true);
   };
+  void handleUpdate; // suppress unused warning
 
   return (
     <div style={{ padding: '1.5rem 2rem', maxWidth: 700, margin: '0 auto' }}>
@@ -64,16 +65,17 @@ export default function Profile() {
       <div style={{ marginBottom: '2rem' }}>
         <h1
           style={{
-            fontFamily: "'Comfortaa', system-ui, sans-serif",
-            fontWeight: 700,
-            fontSize: '1.5rem',
-            color: '#1d1c15',
+            fontFamily: "'Sora', system-ui, sans-serif",
+            fontWeight: 800,
+            fontSize: '1.875rem',
+            color: '#0D1117',
             marginBottom: '0.25rem',
+            letterSpacing: '-0.03em',
           }}
         >
           Settings
         </h1>
-        <p style={{ color: '#3e494c', fontSize: '0.875rem' }}>
+        <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
           Manage your account and preferences.
         </p>
       </div>
@@ -88,8 +90,8 @@ export default function Profile() {
           <UserProfile routing="hash" />
           <button
             onClick={() => setShowClerkProfile(false)}
-            className="btn-ghost"
-            style={{ fontSize: '0.8125rem' }}
+            className="btn-secondary"
+            style={{ fontSize: '0.875rem' }}
           >
             ← Back to Summary
           </button>
@@ -103,19 +105,21 @@ export default function Profile() {
           {/* ── Profile Card ────────────────────────── */}
           <div
             style={{
-              background: 'var(--gradient-primary)',
+              background: 'linear-gradient(135deg, #0D1117 0%, #1A2232 100%)',
               padding: '2rem',
               display: 'flex',
               alignItems: 'center',
               gap: '1.25rem',
+              boxShadow: '0 8px 40px rgba(13,17,23,0.25)',
+              borderRadius: '12px',
             }}
           >
             <div
               style={{
                 width: 72,
                 height: 72,
-                background: 'rgba(255,255,255,0.15)',
-                border: '2px solid rgba(255,255,255,0.3)',
+                background: 'rgba(34,201,232,0.12)',
+                border: '2px solid rgba(34,201,232,0.30)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 flexShrink: 0,
@@ -131,17 +135,18 @@ export default function Profile() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <User size={32} color="rgba(255,255,255,0.6)" />
+                <User size={32} color="#22C9E8" />
               )}
             </div>
             <div>
               <h2
                 style={{
-                  fontFamily: "'Comfortaa', system-ui, sans-serif",
-                  fontWeight: 700,
-                  fontSize: '1.25rem',
+                  fontFamily: "'Sora', system-ui, sans-serif",
+                  fontWeight: 800,
+                  fontSize: '1.375rem',
                   color: '#ffffff',
-                  marginBottom: '0.25rem',
+                  marginBottom: '0.4rem',
+                  letterSpacing: '-0.02em',
                 }}
               >
                 {user.fullName || user.username || email || 'User'}
@@ -149,9 +154,10 @@ export default function Profile() {
               <span
                 className="badge"
                 style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  color: '#ffffff',
+                  background: 'rgba(34,201,232,0.15)',
+                  color: '#22C9E8',
                   fontSize: '0.65rem',
+                  border: '1px solid rgba(34,201,232,0.25)',
                 }}
               >
                 <Shield size={10} />
@@ -164,24 +170,27 @@ export default function Profile() {
           <div
             style={{
               background: '#ffffff',
-              border: '1px solid rgba(189,200,204,0.2)',
+              boxShadow: '0 4px 24px rgba(13,17,23,0.08)',
               overflow: 'hidden',
+              borderRadius: '12px',
             }}
           >
+            {/* Section header */}
             <div
               style={{
-                padding: '0.625rem 1.25rem',
-                background: '#f8f3e7',
-                borderBottom: '1px solid rgba(189,200,204,0.2)',
+                padding: '0.75rem 1.25rem',
+                background: '#0D1117',
+                borderBottom: '1px solid rgba(34,201,232,0.12)',
               }}
             >
               <span
                 style={{
-                  fontSize: '0.65rem',
+                  fontSize: '0.6rem',
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.07em',
-                  color: '#6e797c',
+                  letterSpacing: '0.09em',
+                  color: 'rgba(255,255,255,0.40)',
+                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                 }}
               >
                 Account Information
@@ -195,7 +204,7 @@ export default function Profile() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '1rem 1.25rem',
-                borderBottom: '1px solid rgba(189,200,204,0.15)',
+                borderBottom: '1px solid #EEF4F7',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -203,11 +212,12 @@ export default function Profile() {
                   style={{
                     width: 36,
                     height: 36,
-                    background: 'rgba(0,104,121,0.08)',
+                    background: 'rgba(34,201,232,0.10)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#006879',
+                    color: '#22C9E8',
+                    borderRadius: '8px',
                   }}
                 >
                   <Mail size={16} />
@@ -215,22 +225,23 @@ export default function Profile() {
                 <div>
                   <p
                     style={{
-                      fontSize: '0.65rem',
+                      fontSize: '0.6rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: '#6e797c',
+                      letterSpacing: '0.07em',
+                      color: '#7a9aa8',
                       marginBottom: '0.125rem',
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                     }}
                   >
                     Email Address
                   </p>
                   <p
                     style={{
-                      fontFamily: "'Comfortaa', system-ui, sans-serif",
-                      fontSize: '0.875rem',
-                      color: '#1d1c15',
-                      fontWeight: 500,
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontSize: '0.9375rem',
+                      color: '#0D1117',
+                      fontWeight: 600,
                     }}
                   >
                     {email}
@@ -238,7 +249,7 @@ export default function Profile() {
                 </div>
               </div>
               {user.primaryEmailAddress?.verification.status === 'verified' && (
-                <CheckCircle2 size={16} color="#006879" />
+                <CheckCircle2 size={16} color="#22C9E8" />
               )}
             </div>
 
@@ -255,11 +266,12 @@ export default function Profile() {
                   style={{
                     width: 36,
                     height: 36,
-                    background: 'rgba(0,104,121,0.08)',
+                    background: 'rgba(34,201,232,0.10)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#006879',
+                    color: '#22C9E8',
+                    borderRadius: '8px',
                   }}
                 >
                   <User size={16} />
@@ -267,12 +279,13 @@ export default function Profile() {
                 <div>
                   <p
                     style={{
-                      fontSize: '0.65rem',
+                      fontSize: '0.6rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: '#6e797c',
+                      letterSpacing: '0.07em',
+                      color: '#7a9aa8',
                       marginBottom: '0.125rem',
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                     }}
                   >
                     User ID
@@ -281,8 +294,9 @@ export default function Profile() {
                     style={{
                       fontSize: '0.7rem',
                       fontFamily: 'monospace',
-                      color: '#3e494c',
+                      color: '#1A2232',
                       wordBreak: 'break-all',
+                      fontWeight: 500,
                     }}
                   >
                     {user.id}
@@ -295,9 +309,10 @@ export default function Profile() {
           {/* ── Actions ─────────────────────────────── */}
           <div
             style={{
-              background: '#f8f3e7',
-              border: '1px solid rgba(189,200,204,0.2)',
+              background: '#ffffff',
+              boxShadow: '0 4px 24px rgba(13,17,23,0.08)',
               overflow: 'hidden',
+              borderRadius: '12px',
             }}
           >
             <button
@@ -310,21 +325,21 @@ export default function Profile() {
                 padding: '1rem 1.25rem',
                 background: 'transparent',
                 border: 'none',
-                borderBottom: '1px solid rgba(189,200,204,0.2)',
+                borderBottom: '1px solid #EEF4F7',
                 cursor: 'pointer',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                 transition: 'background-color 0.15s',
               }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ede8dc')}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
               onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Shield size={16} color="#006879" />
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1d1c15' }}>
+                <Shield size={16} color="#22C9E8" />
+                <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0D1117' }}>
                   Manage Account Settings
                 </span>
               </div>
-              <ChevronRight size={16} color="#bdc8cc" />
+              <ChevronRight size={16} color="#94a3b8" />
             </button>
 
             <button
@@ -338,23 +353,23 @@ export default function Profile() {
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                fontFamily: "'Comfortaa', system-ui, sans-serif",
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                 transition: 'background-color 0.15s',
               }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ede8dc')}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
               onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <ChevronRight
                   size={16}
-                  color="#006879"
+                  color="#22C9E8"
                   style={{ transform: 'scaleX(-1)' }}
                 />
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1d1c15' }}>
+                <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0D1117' }}>
                   Wallet & Billing
                 </span>
               </div>
-              <ChevronRight size={16} color="#bdc8cc" />
+              <ChevronRight size={16} color="#94a3b8" />
             </button>
           </div>
         </motion.div>
