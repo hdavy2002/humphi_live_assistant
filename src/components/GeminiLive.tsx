@@ -71,7 +71,9 @@ export default function GeminiLive() {
   const { logs, addLog, clearLogs } = useLogs();
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
-  
+  const [permissionState, setPermissionState] = useState<'idle' | 'denied' | 'granted'>('idle');
+  const [permissionDeniedType, setPermissionDeniedType] = useState<'mic' | 'camera' | 'both' | null>(null);
+
   // Settings
   const [selectedMic, setSelectedMic] = useState<string>("default");
   const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
@@ -129,6 +131,42 @@ export default function GeminiLive() {
   }, [isConnected]);
 
   const getDevices = async () => {
+    // Step 1: Request permissions first so device labels are populated.
+    // Browsers return blank labels unless the user has granted access.
+    let micGranted = false;
+    let cameraGranted = false;
+
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStream.getTracks().forEach(t => t.stop());
+      micGranted = true;
+    } catch {
+      addLog('warn', 'Microphone permission denied or unavailable');
+    }
+
+    try {
+      const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      camStream.getTracks().forEach(t => t.stop());
+      cameraGranted = true;
+    } catch {
+      addLog('warn', 'Camera permission denied or unavailable');
+    }
+
+    // Show in-app permission modal if either was denied
+    if (!micGranted && !cameraGranted) {
+      setPermissionDeniedType('both');
+      setPermissionState('denied');
+    } else if (!micGranted) {
+      setPermissionDeniedType('mic');
+      setPermissionState('denied');
+    } else if (!cameraGranted) {
+      setPermissionDeniedType('camera');
+      setPermissionState('denied');
+    } else {
+      setPermissionState('granted');
+    }
+
+    // Step 2: Enumerate devices — now labels will be available
     try {
       const devs = await navigator.mediaDevices.enumerateDevices();
       
@@ -609,6 +647,77 @@ export default function GeminiLive() {
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative selection:bg-[#22C9E8]/30">
+      {/* ── Permissions Denied Modal ─────────────────────────────────── */}
+      <AnimatePresence>
+        {permissionState === 'denied' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="w-full max-w-sm bg-[#1A2232] rounded-[32px] border border-white/10 shadow-2xl overflow-hidden"
+            >
+              {/* Header */}
+              <div className="relative px-6 pt-8 pb-6 bg-gradient-to-b from-red-500/10 to-transparent">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle size={32} className="text-red-400" />
+                </div>
+                <h2 className="text-center text-white font-black text-lg tracking-tight mb-1" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                  Permission Required
+                </h2>
+                <p className="text-center text-white/50 text-xs leading-relaxed">
+                  {permissionDeniedType === 'both' && 'Humphi Live needs access to your microphone and camera to work.'}
+                  {permissionDeniedType === 'mic' && 'Humphi Live needs access to your microphone to listen to your voice.'}
+                  {permissionDeniedType === 'camera' && 'Camera access was blocked. You can still use the app with mic only.'}
+                </p>
+              </div>
+
+              {/* Steps */}
+              <div className="px-6 pb-6 space-y-3">
+                <div className="text-[9px] uppercase font-black tracking-widest text-white/30 mb-3">How to fix this</div>
+                {[
+                  { num: '1', text: 'Click the 🔒 lock or camera icon in your browser\'s address bar' },
+                  { num: '2', text: permissionDeniedType === 'both' ? 'Set Microphone and Camera to "Allow"' : permissionDeniedType === 'mic' ? 'Set Microphone to "Allow"' : 'Set Camera to "Allow"' },
+                  { num: '3', text: 'Refresh this page and try again' },
+                ].map(step => (
+                  <div key={step.num} className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="w-5 h-5 rounded-full bg-[#22C9E8]/20 border border-[#22C9E8]/30 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-[9px] font-black text-[#22C9E8]">{step.num}</span>
+                    </div>
+                    <p className="text-[11px] text-white/60 leading-snug">{step.text}</p>
+                  </div>
+                ))}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 pt-2">
+                  {/* Only show dismiss for camera-only so user can still use the app with mic */}
+                  {permissionDeniedType === 'camera' && (
+                    <button
+                      onClick={() => setPermissionState('idle')}
+                      className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/50 transition-all"
+                    >
+                      Continue without camera
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setPermissionState('idle'); getDevices(); }}
+                    className="flex-1 py-3 bg-[#22C9E8] hover:bg-[#22C9E8]/90 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#0D1117] transition-all active:scale-[0.98]"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Mobile Sidebar Menu ──────────────────────────────────────── */}
       <AnimatePresence>
         {isMenuOpen && (
@@ -788,7 +897,7 @@ export default function GeminiLive() {
                         <Mic size={14} />
                         <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Input Device</span>
                       </div>
-                      {/* Visual Ping */}
+                      {/* Live ping when mic is on */}
                       {isMicOn && (
                         <div className="flex gap-0.5 h-3 items-end">
                             {[...Array(4)].map((_, i) => (
@@ -808,23 +917,48 @@ export default function GeminiLive() {
                       onChange={(e) => setSelectedMic(e.target.value)}
                       className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#22C9E8]/30 cursor-pointer"
                     >
-                      {devices.map(d => (
-                        <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
-                      ))}
+                      {devices.length === 0 ? (
+                        <option value="">No microphone detected</option>
+                      ) : (
+                        devices.map(d => (
+                          <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                        ))
+                      )}
                     </select>
 
+                    {/* Mic Power Meter */}
                     <div className="space-y-1.5">
                         <div className="flex justify-between text-[8px] uppercase font-black tracking-widest text-white/20">
                             <span>Mic Power</span>
-                            <span>{Math.round(micVolume * 100)}%</span>
+                            <span>{isTestingMic ? `${Math.round(micVolume * 100)}%` : 'Press test to activate'}</span>
                         </div>
-                        <div className="relative h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                        <div className="relative h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                             <motion.div 
-                            animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
-                            className="absolute h-full bg-gradient-to-r from-blue-500 to-[#22C9E8] shadow-[0_0_12px_rgba(34,201,232,0.4)]"
+                              animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
+                              transition={{ duration: 0.1 }}
+                              className="absolute h-full bg-gradient-to-r from-blue-500 to-[#22C9E8] shadow-[0_0_12px_rgba(34,201,232,0.4)]"
                             />
                         </div>
                     </div>
+
+                    {/* Test Mic Button */}
+                    <button
+                      onClick={toggleMicTest}
+                      className={cn(
+                        "w-full py-3 rounded-2xl flex items-center justify-center gap-2.5 transition-all group active:scale-[0.98] border-2",
+                        isTestingMic
+                          ? "bg-[#22C9E8]/10 border-[#22C9E8]/30 text-[#22C9E8]"
+                          : "bg-white/5 hover:bg-white/10 border-white/5 text-white/50 hover:text-white"
+                      )}
+                    >
+                      <Mic size={13} className={isTestingMic ? "animate-pulse" : ""} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {isTestingMic ? 'Stop Mic Test' : 'Test Microphone'}
+                      </span>
+                      {isTestingMic && (
+                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                      )}
+                    </button>
                   </div>
 
                   {/* Camera Diagnostics */}
