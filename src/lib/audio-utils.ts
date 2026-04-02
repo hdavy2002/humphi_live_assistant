@@ -89,15 +89,16 @@ export class AudioRecorder {
 }
 
 export class AudioPlayer {
-  private audioContext: AudioContext | null = null;
+  private audioContext: AudioContext| null = null;
   private nextStartTime: number = 0;
+  private muted: boolean = false;
 
   constructor() {
     this.audioContext = new AudioContext({ sampleRate: 24000 });
   }
 
   async playChunk(base64Data: string) {
-    if (!this.audioContext) return;
+    if (!this.audioContext || this.muted) return;
 
     if (this.audioContext.state === 'suspended') {
       await this.audioContext.resume();
@@ -125,6 +126,10 @@ export class AudioPlayer {
     const startTime = Math.max(this.audioContext.currentTime, this.nextStartTime);
     source.start(startTime);
     this.nextStartTime = startTime + audioBuffer.duration;
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = muted;
   }
 
   stop() {

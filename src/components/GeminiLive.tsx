@@ -86,6 +86,11 @@ export default function GeminiLive() {
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [micVolume, setMicVolume] = useState(0);
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+  const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<string>("default");
+  const [isHardwareMenuOpen, setIsHardwareMenuOpen] = useState(false);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
 
   const connectedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -126,10 +131,20 @@ export default function GeminiLive() {
   const getDevices = async () => {
     try {
       const devs = await navigator.mediaDevices.enumerateDevices();
+      
       const audioIn = devs
         .filter(d => d.kind === 'audioinput')
         .map(d => ({ deviceId: d.deviceId, label: d.label || `Mic ${d.deviceId.slice(0, 5)}` }));
       setDevices(audioIn);
+
+      const videoIn = devs
+        .filter(d => d.kind === 'videoinput')
+        .map(d => ({ deviceId: d.deviceId, label: d.label || `Camera ${d.deviceId.slice(0, 5)}` }));
+      setVideoDevices(videoIn);
+      
+      if (videoIn.length > 0 && selectedCamera === "default") {
+        setSelectedCamera(videoIn[0].deviceId);
+      }
     } catch (err) {
       addLog('error', 'Failed to enumerate devices', err);
     }
@@ -355,6 +370,18 @@ export default function GeminiLive() {
     }
   };
 
+  const toggleSpeakerMute = () => {
+    const isMuted = !isSpeakerMuted;
+    setIsSpeakerMuted(isMuted);
+    if (audioPlayerRef.current) {
+        audioPlayerRef.current.setMuted(isMuted);
+    }
+    // Update local storage for preference
+    localStorage.setItem('speakerMuted', isMuted ? 'true' : 'false');
+    addLog('system', `Speaker ${isMuted ? 'Muted' : 'Unmuted'}`);
+  };
+
+
   const startScreenCapture = async () => {
     try {
       if (isCameraOn) stopCameraCapture();
@@ -421,12 +448,18 @@ export default function GeminiLive() {
     }
   };
 
-  const startCameraCapture = async () => {
+  async function startCameraCapture(specificDeviceId?: string) {
     try {
       if (isScreenSharing) stopScreenCapture();
+      const id = specificDeviceId || selectedCamera;
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: screenMaxDimension }, height: { ideal: screenMaxDimension }, frameRate: 5 }
+        video: { 
+          deviceId: id !== "default" ? { exact: id } : undefined,
+          width: { ideal: screenMaxDimension }, 
+          height: { ideal: screenMaxDimension }, 
+          frameRate: 5 
+        }
       });
       
       if (videoRef.current) {
@@ -456,12 +489,13 @@ export default function GeminiLive() {
       }, 2000);
 
       stream.getVideoTracks()[0].onended = () => stopCameraCapture();
+      setIsCameraOn(true);
       addLog('info', 'Camera capture started');
     } catch (err) {
       addLog('error', 'Failed to start camera capture', err);
       setIsCameraOn(false);
     }
-  };
+  }
 
   const stopCameraCapture = () => {
     if (screenIntervalRef.current) {
@@ -574,8 +608,8 @@ export default function GeminiLive() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative">
-      {/* Hamburger Menu Overlay */}
+    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative selection:bg-[#22C9E8]/30">
+      {/* ── Mobile Sidebar Menu ──────────────────────────────────────── */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
@@ -638,14 +672,21 @@ export default function GeminiLive() {
         )}
       </AnimatePresence>
 
-      {/* Unified Control Bar */}
-      <header className="shrink-0 p-3 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20">
-        {/* Left: Connection & Start Button */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2232] rounded-full border-2 border-black/20 min-w-[90px]">
-            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-[#22C9E8] animate-pulse" : "bg-white/10")} />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-white leading-none">
-              {isConnected ? "Live" : "Offline"}
+      {/* ── Unified Hardware Header ───────────────────────────────────── */}
+      <header className="shrink-0 p-3 pt-4 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20 relative">
+        <div className="flex items-center gap-3 md:gap-4 leading-none">
+          {/* Mobile Menu Trigger */}
+          <button 
+            onClick={() => setIsMenuOpen(true)}
+            className="p-2 bg-white/5 rounded-xl border border-white/10 lg:hidden"
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2232] rounded-full border-2 border-black/20 min-w-[70px] md:min-w-[90px]">
+            <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-[#22C9E8] animate-pulse" : "bg-white/10")} />
+            <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-white leading-none">
+              {isConnected ? "Live" : "Idle"}
             </span>
           </div>
 
@@ -653,19 +694,19 @@ export default function GeminiLive() {
             onClick={isConnected ? stopSession : startSession}
             disabled={isConnecting}
             className={cn(
-              "h-9 px-6 transition-all flex items-center justify-center",
+              "h-8 md:h-9 px-4 md:px-6 transition-all flex items-center justify-center font-bold",
               isConnected 
-                ? "btn-primary rounded-full !border-red-500/50 !bg-red-500/10 !text-red-500 hover:!bg-red-500 hover:!text-white" 
-                : "btn-cta rounded-full active:scale-95 shadow-none"
+                ? "bg-red-500/10 text-red-500 border border-red-500/30 rounded-full hover:bg-red-500 hover:text-white" 
+                : "bg-[#FFCC00] text-black rounded-full hover:bg-[#FFD633] shadow-lg shadow-[#FFCC00]/10"
             )}
-            style={{ fontFamily: "'Comfortaa', sans-serif", fontSize: '10px' }}
+            style={{ fontSize: '9px', tracking: '0.1em' }}
           >
-            {isConnecting ? "..." : isConnected ? "End Session" : "Start Session →"}
+            {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
           </button>
         </div>
 
-        {/* Center: Usage Metrics */}
-        <div className="hidden md:flex items-center gap-8 px-6 py-1.5 rounded-full bg-[#1A2232] border-2 border-black/20">
+        {/* Desktop Metrics */}
+        <div className="hidden lg:flex items-center gap-8 px-6 py-1.5 rounded-full bg-[#1A2232] border-2 border-black/20">
           <div className="flex flex-col items-center">
             <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Tokens</span>
             <span className="text-[11px] font-bold text-[#22C9E8] leading-none">{tokenUsage.total.toLocaleString()}</span>
@@ -673,423 +714,319 @@ export default function GeminiLive() {
           <div className="w-px h-5 bg-white/10" />
           <div className="flex flex-col items-center">
             <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Cost</span>
-            <span className="text-[11px] font-bold text-[#22C9E8] leading-none">
+            <span className="text-[11px] font-bold text-green-400 leading-none">
               ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
             </span>
           </div>
           <div className="w-px h-5 bg-white/10" />
-          <button 
-            onClick={() => navigate('/wallet')}
-            className="flex flex-col items-center group transition-colors"
-          >
-            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5 transition-colors group-hover:text-[#FF6619]">Wallet</span>
-            <span className="text-[11px] font-bold text-[#FF6619] leading-none group-active:scale-95 transition-transform">
+          <div className="flex flex-col items-center">
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Wallet</span>
+            <span className="text-[11px] font-bold text-orange-400 leading-none">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </span>
-          </button>
+          </div>
         </div>
 
-        {/* Right: Media Controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-end gap-1 h-6 px-3 mr-2 border-r border-white/10">
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={i}
-                animate={{ 
-                  height: isMicOn && isConnected ? Math.max(3, micVolume * (15 + Math.random() * 15)) : 3,
-                  opacity: isMicOn && isConnected ? 1 : 0.2
-                }}
-                className={cn(
-                  "w-0.5 rounded-full bg-blue-500",
-                  (!isMicOn || !isConnected) && "bg-white/20"
-                )}
-              />
-            ))}
+        {/* Hardware Status & Menu Trigger */}
+        <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10">
+             {/* Mic Status */}
+             <button 
+               onClick={toggleMic}
+               className={cn(
+                 "p-2 md:p-2.5 rounded-xl transition-all",
+                 isMicOn ? "text-[#22C9E8] bg-[#22C9E8]/5" : "text-white/20 hover:text-white/40"
+               )}
+             >
+               {isMicOn ? <Mic size={16} /> : <MicOff size={16} />}
+             </button>
+
+             {/* Speaker Status */}
+             <button 
+               onClick={toggleSpeakerMute}
+               className={cn(
+                 "p-2 md:p-2.5 rounded-xl transition-all",
+                 !isSpeakerMuted ? "text-green-400 bg-green-400/5" : "text-red-400/60 bg-red-400/5"
+               )}
+             >
+               {!isSpeakerMuted ? <Volume2 size={16} /> : <AlertCircle size={16} />}
+             </button>
+
+             {/* Cam Status */}
+             <button 
+               onClick={toggleCamera}
+               className={cn(
+                 "p-2 md:p-2.5 rounded-xl transition-all",
+                 isCameraOn ? "text-[#FF6619] bg-[#FF6619]/5" : "text-white/20 hover:text-white/40"
+               )}
+             >
+               {isCameraOn ? <Video size={16} /> : <VideoOff size={16} />}
+             </button>
           </div>
 
           <button 
-            onClick={toggleMic}
-            className={cn(
-              "p-2.5 rounded-lg transition-all active:scale-90",
-              isMicOn ? "text-blue-400 bg-blue-400/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]" : "text-white/20 hover:text-white/40 bg-white/5"
-            )}
-            title="Toggle Microphone"
+            onClick={() => setIsHardwareMenuOpen(!isHardwareMenuOpen)}
+            className="p-2 md:p-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white/80 transition-all"
           >
-            {isMicOn ? <Mic size={18} /> : <MicOff size={18} />}
+            <Settings size={18} className={cn("transition-transform duration-500", isHardwareMenuOpen && "rotate-90 text-[#22C9E8]")} />
           </button>
 
-          <button 
-            onClick={toggleScreenShare}
-            className={cn(
-              "p-2.5 rounded-lg transition-all active:scale-90",
-              isScreenSharing ? "text-green-400 bg-green-400/10" : "text-white/20 hover:text-white/40 bg-white/5"
-            )}
-            title="Share Screen"
-          >
-            <Monitor size={18} />
-          </button>
+          {/* ── Hardware Diagnostics Hub (Dropdown) ─────────────────── */}
+          <AnimatePresence>
+            {isHardwareMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute top-full right-0 mt-4 w-[280px] md:w-[340px] bg-[#1A2232] rounded-[32px] border-4 border-black/40 shadow-2xl z-50 overflow-hidden"
+              >
+                <div className="p-6 space-y-6">
+                  {/* Mic Diagnostics */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[#22C9E8]">
+                        <Mic size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Input Device</span>
+                      </div>
+                      {/* Visual Ping */}
+                      {isMicOn && (
+                        <div className="flex gap-0.5 h-3 items-end">
+                            {[...Array(4)].map((_, i) => (
+                                <motion.div 
+                                    key={i}
+                                    animate={{ height: [4, 12, 4] }}
+                                    transition={{ repeat: Infinity, duration: 1, delay: i * 0.1 }}
+                                    className="w-1 bg-[#22C9E8] rounded-full" 
+                                />
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <select 
+                      value={selectedMic} 
+                      onChange={(e) => setSelectedMic(e.target.value)}
+                      className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#22C9E8]/30 cursor-pointer"
+                    >
+                      {devices.map(d => (
+                        <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                      ))}
+                    </select>
 
-          <button 
-            onClick={toggleCamera}
-            className={cn(
-              "p-2.5 rounded-lg transition-all active:scale-90",
-              isCameraOn ? "text-purple-400 bg-purple-400/10" : "text-white/20 hover:text-white/40 bg-white/5"
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between text-[8px] uppercase font-black tracking-widest text-white/20">
+                            <span>Mic Power</span>
+                            <span>{Math.round(micVolume * 100)}%</span>
+                        </div>
+                        <div className="relative h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                            <motion.div 
+                            animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
+                            className="absolute h-full bg-gradient-to-r from-blue-500 to-[#22C9E8] shadow-[0_0_12px_rgba(34,201,232,0.4)]"
+                            />
+                        </div>
+                    </div>
+                  </div>
+
+                  {/* Camera Diagnostics */}
+                  <div className="space-y-3 pt-5 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-[#FF6619]">
+                      <Video size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Visual Device</span>
+                    </div>
+
+                    <select 
+                      value={selectedCamera} 
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        setSelectedCamera(newId);
+                        if (isCameraOn) startCameraCapture(newId);
+                      }}
+                      className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#FF6619]/30 cursor-pointer"
+                    >
+                      {videoDevices.map(d => (
+                        <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                      ))}
+                    </select>
+
+                    <div className="aspect-video bg-black/40 rounded-2xl border-2 border-white/5 overflow-hidden relative flex items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-repeat">
+                       {!isCameraOn ? (
+                         <span className="text-[9px] uppercase font-black tracking-widest text-white/10 animate-pulse">Camera Idle</span>
+                       ) : (
+                         <video 
+                           ref={(el) => {
+                             if (el && isCameraOn) {
+                               const mainStream = videoRef.current?.srcObject as MediaStream;
+                               if (mainStream) el.srcObject = mainStream;
+                             }
+                           }}
+                           autoPlay 
+                           playsInline 
+                           muted 
+                           className="w-full h-full object-cover"
+                         />
+                       )}
+                       {/* Floating Label */}
+                       {isCameraOn && (
+                          <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-[7px] font-black uppercase tracking-widest text-green-400">
+                             Testing Feed
+                          </div>
+                       )}
+                    </div>
+                  </div>
+
+                  {/* Speaker Diagnostics */}
+                  <div className="pt-5 border-t border-white/5">
+                    <button 
+                      onClick={testSpeakers}
+                      className="w-full py-4 bg-white/5 hover:bg-white/10 border-2 border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all group active:scale-[0.98]"
+                    >
+                      <Volume2 size={16} className="text-green-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-[11px] font-black uppercase tracking-widest text-white/60 group-hover:text-white">Play Test Chime</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             )}
-            title="Toggle Camera"
-          >
-            <Video size={18} />
-          </button>
+          </AnimatePresence>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {activeTab === 'chat' && (
-            <motion.div 
-              key="stream"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col p-4 md:p-8"
-            >
-              {/* ── Area 1: Main Stream Box ───────────────────────────────── */}
-              <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[48px] border-4 border-black/20 shadow-2xl overflow-hidden relative group">
-                <AnimatePresence mode="wait">
-                  {(isScreenSharing || isCameraOn) ? (
-                    <motion.div 
-                      key="video"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 1.05 }}
-                      className="absolute inset-0 z-10"
-                    >
-                      <video 
-                        ref={videoRef} 
-                        autoPlay 
-                        playsInline 
-                        muted 
-                        className={cn(
-                          "w-full h-full",
-                          isScreenSharing ? "object-contain bg-black/40" : "object-cover"
-                        )}
-                      />
-                      <div className="absolute top-8 left-8 flex items-center gap-3">
-                         <div className="px-4 py-2 bg-[#22C9E8] rounded-2xl text-[#0D1117] text-[10px] font-bold uppercase tracking-widest shadow-xl flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 bg-[#0D1117] rounded-full animate-pulse" />
-                           {isScreenSharing ? "Browser Tab Shared" : "Webcam Stream Active"}
-                         </div>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div 
-                      key="empty"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center"
-                    >
-                      <div className="w-24 h-24 bg-white/5 rounded-[32px] border-2 border-white/10 flex items-center justify-center mb-8 shadow-inner">
-                        <Terminal size={48} className="text-[#22C9E8]/40" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                        Ready for <span className="text-[#22C9E8]">Live Interaction</span>
-                      </h3>
-                      <p className="text-white/40 max-w-sm text-sm font-medium leading-relaxed">
-                        Start a session to interact with your AI assistant using voice and real-time visual context.
-                      </p>
-                    </motion.div>
+      {/* ── Area 1: Responsive Stream Container ───────────────────────── */}
+      <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
+        <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group">
+          <AnimatePresence mode="wait">
+            {(isScreenSharing || isCameraOn) ? (
+              <motion.div 
+                key="video"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                className="absolute inset-0 z-10"
+              >
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={cn(
+                    "w-full h-full transition-transform duration-700 ease-out",
+                    isScreenSharing ? "object-contain bg-black/60" : "object-cover group-hover:scale-105"
                   )}
-                </AnimatePresence>
+                />
                 
-                {/* Visualizer Overlay */}
-                <div className="absolute bottom-8 right-8 flex items-end gap-1.5 h-12 z-20">
-                  {[...Array(12)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ 
-                        height: isMicOn && isConnected ? Math.max(4, micVolume * (32 + Math.random() * 24)) : 4,
-                        opacity: isMicOn && isConnected ? 1 : 0.1
-                      }}
-                      className={cn(
-                        "w-1 rounded-full",
-                        isConnected ? "bg-[#22C9E8]" : "bg-white/20"
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Area 3: Control Tabs ──────────────────────────────────── */}
-              <div className="shrink-0 mt-8 flex justify-center">
-                <div className="p-2 bg-[#1A2232] rounded-[32px] border-2 border-black/20 shadow-2xl flex items-center gap-2">
-                  <button 
-                    onClick={toggleMic}
-                    disabled={!isConnected && !isConnecting}
-                    className={cn(
-                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
-                      isMicOn ? "bg-[#22C9E8] text-[#0D1117] shadow-lg shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
-                    )}
-                  >
-                    {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
-                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Mic</span>
-                  </button>
-
-                  <button 
-                    onClick={toggleCamera}
-                    disabled={!isConnected}
-                    className={cn(
-                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
-                      isCameraOn ? "bg-[#FF6619] text-white shadow-lg shadow-[#FF6619]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
-                    )}
-                  >
-                    <Video size={20} />
-                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Cam</span>
-                  </button>
-
-                  <button 
-                    onClick={toggleScreenShare}
-                    disabled={!isConnected}
-                    className={cn(
-                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
-                      isScreenSharing ? "bg-[#22C9E8] text-[#0D1117] shadow-lg shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
-                    )}
-                  >
-                    <Monitor size={20} />
-                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Tab</span>
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'logs' && (
-            <motion.div 
-              key="logs"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Terminal size={14} className="text-purple-400" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider">System Logs</h2>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button onClick={copyLogs} className="text-[10px] text-blue-400 hover:text-blue-300 uppercase font-bold tracking-widest">Copy All</button>
-                  <button onClick={clearLogs} className="text-[10px] text-white/20 hover:text-white/60 uppercase font-bold tracking-widest">Clear</button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 text-[10px] space-y-2">
-                {logs.length === 0 && (
-                  <div className="h-full flex items-center justify-center text-white/10 italic">No logs recorded yet.</div>
-                )}
-                {logs.map((log) => (
-                  <LogItem key={log.id} log={log} />
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'settings' && (
-            <motion.div 
-              key="settings"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              <div className="p-4 border-b border-white/10 flex items-center gap-2">
-                <Settings size={14} className="text-orange-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider">Settings</h2>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                {/* Voice & Language Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Volume2 size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Voice & Language</h3>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Voice</label>
-                    <select 
-                      value={selectedVoice}
-                      onChange={(e) => setSelectedVoice(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
+                {/* Status Badges */}
+                <div className="absolute top-4 left-4 md:top-8 md:left-8 flex flex-col gap-2 pointer-events-none">
+                    <motion.div 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        className="px-4 py-2 bg-[#22C9E8] rounded-2xl text-[#0D1117] text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-2xl flex items-center gap-2 max-w-max"
                     >
-                      <option value="Zephyr" className="bg-[#111]">Zephyr (Default)</option>
-                      <option value="Puck" className="bg-[#111]">Puck</option>
-                      <option value="Charon" className="bg-[#111]">Charon</option>
-                      <option value="Kore" className="bg-[#111]">Kore</option>
-                      <option value="Fenrir" className="bg-[#111]">Fenrir</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Language</label>
-                      <select 
-                        value={selectedLanguage}
-                        onChange={(e) => setSelectedLanguage(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                      >
-                        <option value="English" className="bg-[#111]">English</option>
-                        <option value="Hindi" className="bg-[#111]">Hindi</option>
-                        <option value="Tamil" className="bg-[#111]">Tamil</option>
-                        <option value="Spanish" className="bg-[#111]">Spanish</option>
-                        <option value="French" className="bg-[#111]">French</option>
-                        <option value="German" className="bg-[#111]">German</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/30 px-1">Accent</label>
-                      <select 
-                        value={selectedAccent}
-                        onChange={(e) => setSelectedAccent(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                      >
-                        <option value="Neutral" className="bg-[#111]">Neutral</option>
-                        <option value="Indian" className="bg-[#111]">Indian</option>
-                        <option value="British" className="bg-[#111]">British</option>
-                        <option value="American" className="bg-[#111]">American</option>
-                        <option value="Australian" className="bg-[#111]">Australian</option>
-                      </select>
-                    </div>
-                  </div>
+                        <div className="w-1.5 h-1.5 bg-[#0D1117] rounded-full animate-pulse" />
+                        {isScreenSharing ? "Broadcasting Tab" : "Broadcasting Webcam"}
+                    </motion.div>
+                    
+                    {isMicOn && (
+                        <div className="px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white/80 text-[8px] md:text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 max-w-max">
+                            <Mic size={10} className="text-[#22C9E8]" />
+                            Direct Voice Link
+                        </div>
+                    )}
                 </div>
 
-                {/* Mic Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Mic size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Microphone</h3>
-                  </div>
-                  <select 
-                    value={selectedMic}
-                    onChange={(e) => setSelectedMic(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                  >
-                    {devices.map(d => (
-                      <option key={d.deviceId} value={d.deviceId} className="bg-[#111]">{d.label}</option>
-                    ))}
-                  </select>
-                  
-                  <div className="space-y-3">
-                    <button 
-                      onClick={toggleMicTest}
-                      className={cn(
-                        "w-full py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border",
-                        isTestingMic ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                      )}
-                    >
-                      {isTestingMic ? "Stop Test" : "Test Mic Level"}
-                    </button>
-
-                    {isTestingMic && (
-                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
-                          className="h-full bg-green-500"
+                {/* Floating Visualizer */}
+                <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex items-end gap-1.5 h-10 md:h-16 z-20 p-4 md:p-6 bg-black/40 backdrop-blur-xl rounded-[24px] md:rounded-[32px] border border-white/5">
+                    {[...Array(12)].map((_, i) => (
+                        <motion.div
+                            key={i}
+                            animate={{ 
+                                height: isMicOn && isConnected ? Math.max(4, micVolume * (24 + Math.random() * 20)) : 4,
+                                opacity: isMicOn && isConnected ? 1 : 0.1
+                            }}
+                            className={cn(
+                                "w-0.5 md:w-1 rounded-full transition-colors",
+                                isConnected ? "bg-[#22C9E8]" : "bg-white/20"
+                            )}
                         />
-                      </div>
-                    )}
-                  </div>
+                    ))}
                 </div>
-
-                {/* Screen Share Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Monitor size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Screen Quality</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] uppercase font-bold tracking-widest text-white/30">
-                      <span>JPEG Quality</span>
-                      <span>{Math.round(screenQuality * 100)}%</span>
-                    </div>
-                    <input 
-                      type="range"
-                      min="0.1"
-                      max="1.0"
-                      step="0.1"
-                      value={screenQuality}
-                      onChange={(e) => setScreenQuality(parseFloat(e.target.value))}
-                      className="w-full accent-blue-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] uppercase font-bold tracking-widest text-white/30">
-                      <span>Max Dimension</span>
-                      <span>{screenMaxDimension}px</span>
-                    </div>
-                    <select 
-                      value={screenMaxDimension}
-                      onChange={(e) => setScreenMaxDimension(parseInt(e.target.value))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-500/50"
-                    >
-                      <option value="480" className="bg-[#111]">480px (Fastest)</option>
-                      <option value="720" className="bg-[#111]">720px (Balanced)</option>
-                      <option value="1024" className="bg-[#111]">1024px (Standard)</option>
-                      <option value="1280" className="bg-[#111]">1280px (HD)</option>
-                    </select>
-                  </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center p-8 md:p-12 text-center bg-[radial-gradient(circle_at_center,_#1a1a1a_0%,_#0D1117_100%)]"
+              >
+                <div className="w-16 h-16 md:w-24 md:h-24 bg-white/5 rounded-[28px] md:rounded-[40px] border border-white/10 flex items-center justify-center mb-6 md:mb-10 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Terminal size={32} className="text-[#22C9E8]/40 md:w-12 md:h-12" />
                 </div>
-
-                {/* Speaker Test */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Volume2 size={14} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Audio Output</h3>
-                  </div>
-                  <button 
-                    onClick={testSpeakers}
-                    className="w-full py-2.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:bg-white/10 transition-colors"
-                  >
-                    Test Speaker Sound
-                  </button>
+                <h3 className="text-xl md:text-3xl font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                  Start Your <span className="text-[#22C9E8]">Live Experience</span>
+                </h3>
+                <p className="text-white/40 max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
+                  Connect to Humphi Live to begin a real-time session with your AI assistant using voice and high-fidelity video context.
+                </p>
+                <div className="flex items-center gap-3 p-1.5 bg-[#1A2232] rounded-full border border-black/40">
+                   <div className="px-5 py-2 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/30">
+                      Standard Quality
+                   </div>
+                   <div className="px-5 py-2 bg-[#22C9E8]/10 rounded-full text-[8px] font-black uppercase tracking-widest text-[#22C9E8]">
+                      V3.1 Flash
+                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-                <div className="pt-8 border-t border-white/5 text-center">
-                  <p className="text-[8px] text-white/20 uppercase font-bold tracking-[0.2em]">Gemini Live Desktop v1.0</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
+        <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
+          <div className="p-2 bg-[#1A2232] rounded-[32px] md:rounded-[40px] border-4 border-black/40 shadow-2xl flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+            <button 
+              onClick={toggleMic}
+              disabled={!isConnected && !isConnecting}
+              className={cn(
+                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
+                isMicOn ? "bg-[#22C9E8] text-[#0D1117] shadow-xl shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+              )}
+            >
+              {isMicOn ? <Mic size={20} className="md:w-6 md:h-6" /> : <MicOff size={20} className="md:w-6 md:h-6" />}
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Mic</span>
+            </button>
 
-        {/* Hidden Video for Initial Capture States */}
-        {!isScreenSharing && !isCameraOn && (
-          <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-        )}
+            <button 
+              onClick={toggleCamera}
+              disabled={!isConnected}
+              className={cn(
+                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
+                isCameraOn ? "bg-[#FF6619] text-white shadow-xl shadow-[#FF6619]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+              )}
+            >
+              <Video size={20} className="md:w-6 md:h-6" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Cam</span>
+            </button>
+
+            <button 
+              onClick={toggleScreenShare}
+              disabled={!isConnected}
+              className={cn(
+                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
+                isScreenSharing ? "bg-[#22C9E8] text-[#0D1117] shadow-xl shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+              )}
+            >
+              <Monitor size={20} className="md:w-6 md:h-6" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Tab</span>
+            </button>
+          </div>
+        </div>
       </main>
 
-      {/* Bottom Navigation (Tablet/Desktop Hidden?) */}
-      <nav className="shrink-0 h-16 bg-[#0d0d0d] border-t border-white/10 flex items-center justify-around px-4 z-10 lg:hidden">
-        <button 
-          onClick={() => setActiveTab('logs')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'logs' ? "text-purple-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <Terminal size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Logs</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            activeTab === 'settings' ? "text-orange-500" : "text-white/20 hover:text-white/40"
-          )}
-        >
-          <Settings size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Settings</span>
-        </button>
-      </nav>
+      {/* Hidden Video for Initial Capture States */}
+      {!isScreenSharing && !isCameraOn && (
+        <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+      )}
     </div>
   );
 }
