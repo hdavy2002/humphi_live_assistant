@@ -434,15 +434,20 @@ Identity Rules:
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey && typeof process !== 'undefined' && process.env) {
+        apiKey = process.env.GEMINI_API_KEY;
+      }
       if (!apiKey) throw new Error("API Key configuration error");
 
+      console.log('[GeminiLive] Initializing GoogleGenAI with API key length:', apiKey.length);
       const ai = new GoogleGenAI({ apiKey });
       audioPlayerRef.current = new AudioPlayer();
       audioPlayerRef.current.setMuted(isSpeakerMuted);
 
       const langCode = TIER_1_LANGUAGES.find(l => l.name === selectedLanguage)?.code || 'en-US';
 
+      console.log('[GeminiLive] Calling ai.live.connect...');
       const session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
