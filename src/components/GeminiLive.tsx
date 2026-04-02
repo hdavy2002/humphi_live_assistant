@@ -92,7 +92,9 @@ export default function GeminiLive() {
   const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("default");
   const [isHardwareMenuOpen, setIsHardwareMenuOpen] = useState(false);
+  const [isPreviewingCamera, setIsPreviewingCamera] = useState(false);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewStreamRef = useRef<MediaStream | null>(null);
 
   const connectedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -108,8 +110,16 @@ export default function GeminiLive() {
     getDevices();
     return () => {
       stopSession();
+      stopCameraPreview(); // Clean up preview stream on unmount
     };
   }, []);
+
+  // Stop camera preview whenever the hardware menu closes
+  useEffect(() => {
+    if (!isHardwareMenuOpen) {
+      stopCameraPreview();
+    }
+  }, [isHardwareMenuOpen]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -414,9 +424,40 @@ export default function GeminiLive() {
     if (audioPlayerRef.current) {
         audioPlayerRef.current.setMuted(isMuted);
     }
-    // Update local storage for preference
     localStorage.setItem('speakerMuted', isMuted ? 'true' : 'false');
     addLog('system', `Speaker ${isMuted ? 'Muted' : 'Unmuted'}`);
+  };
+
+  const startCameraPreview = async (deviceId?: string) => {
+    // Stop any previous preview first
+    stopCameraPreview();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: deviceId || selectedCamera || undefined, width: { ideal: 640 }, height: { ideal: 360 } }
+      });
+      previewStreamRef.current = stream;
+      setIsPreviewingCamera(true);
+      // Assign to the preview video element
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+        previewVideoRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      addLog('error', 'Camera preview failed. Check permissions.', err);
+      setPermissionDeniedType('camera');
+      setPermissionState('denied');
+    }
+  };
+
+  const stopCameraPreview = () => {
+    if (previewStreamRef.current) {
+      previewStreamRef.current.getTracks().forEach(t => t.stop());
+      previewStreamRef.current = null;
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
+    }
+    setIsPreviewingCamera(false);
   };
 
 
@@ -974,38 +1015,65 @@ export default function GeminiLive() {
                         const newId = e.target.value;
                         setSelectedCamera(newId);
                         if (isCameraOn) startCameraCapture(newId);
+                        if (isPreviewingCamera) startCameraPreview(newId);
                       }}
                       className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#FF6619]/30 cursor-pointer"
                     >
-                      {videoDevices.map(d => (
-                        <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
-                      ))}
+                      {videoDevices.length === 0 ? (
+                        <option value="">No camera detected</option>
+                      ) : (
+                        videoDevices.map(d => (
+                          <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                        ))
+                      )}
                     </select>
 
-                    <div className="aspect-video bg-black/40 rounded-2xl border-2 border-white/5 overflow-hidden relative flex items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-repeat">
-                       {!isCameraOn ? (
-                         <span className="text-[9px] uppercase font-black tracking-widest text-white/10 animate-pulse">Camera Idle</span>
-                       ) : (
-                         <video 
-                           ref={(el) => {
-                             if (el && isCameraOn) {
-                               const mainStream = videoRef.current?.srcObject as MediaStream;
-                               if (mainStream) el.srcObject = mainStream;
-                             }
-                           }}
-                           autoPlay 
-                           playsInline 
-                           muted 
-                           className="w-full h-full object-cover"
-                         />
-                       )}
-                       {/* Floating Label */}
-                       {isCameraOn && (
-                          <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-[7px] font-black uppercase tracking-widest text-green-400">
-                             Testing Feed
-                          </div>
+                    {/* Camera Preview Thumbnail */}
+                    <div className="aspect-video bg-black/60 rounded-2xl border-2 border-white/5 overflow-hidden relative flex items-center justify-center">
+                       {!isPreviewingCamera ? (
+                         <div className="flex flex-col items-center gap-2 text-center">
+                           <Video size={20} className="text-white/10" />
+                           <span className="text-[8px] uppercase font-black tracking-widest text-white/10">Camera Idle</span>
+                         </div>
+                       ) : null}
+                       {/* Always-mounted video element — hidden when not previewing */}
+                       <video
+                         ref={previewVideoRef}
+                         autoPlay
+                         playsInline
+                         muted
+                         className={cn(
+                           "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+                           isPreviewingCamera ? "opacity-100" : "opacity-0"
+                         )}
+                       />
+                       {/* Live badge */}
+                       {isPreviewingCamera && (
+                         <div className="absolute top-2.5 right-2.5 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 flex items-center gap-1.5 z-10">
+                           <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                           <span className="text-[7px] font-black uppercase tracking-widest text-white/70">Live Preview</span>
+                         </div>
                        )}
                     </div>
+
+                    {/* Test Camera Button */}
+                    <button
+                      onClick={() => isPreviewingCamera ? stopCameraPreview() : startCameraPreview()}
+                      className={cn(
+                        "w-full py-3 rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] border-2",
+                        isPreviewingCamera
+                          ? "bg-[#FF6619]/10 border-[#FF6619]/30 text-[#FF6619]"
+                          : "bg-white/5 hover:bg-white/10 border-white/5 text-white/50 hover:text-white"
+                      )}
+                    >
+                      <Video size={13} className={isPreviewingCamera ? "animate-pulse" : ""} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {isPreviewingCamera ? 'Stop Preview' : 'Test Camera'}
+                      </span>
+                      {isPreviewingCamera && (
+                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                      )}
+                    </button>
                   </div>
 
                   {/* Speaker Diagnostics */}
