@@ -16,7 +16,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
-const MODEL_NAME = "models/gemini-2.0-flash-exp";
+const MODEL_NAME = "gemini-3.1-flash-live-preview";
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -139,10 +139,11 @@ export default function GeminiLive() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
+      console.log('[GeminiLive] Profile data received:', data);
       if (data && data.id) {
           setProfile({
               ...data,
-              wallet_balance: data.walletBalance || 0
+              wallet_balance: typeof data.walletBalance === 'string' ? parseFloat(data.walletBalance) : (data.walletBalance || 0)
           });
       }
     } catch (err) {
@@ -252,7 +253,7 @@ export default function GeminiLive() {
     // 15s Idle check-in
     idleTimerRef.current = setTimeout(() => {
       if (sessionRef.current && isConnected) {
-        sessionRef.current.sendRealtimeInput([{ text: "Are you still there? I'm here if you need anything." }]);
+        sessionRef.current.sendRealtimeInput({ text: "Are you still there? I'm here if you need anything." });
         addLog('info', 'Sent idle check-in');
       }
     }, 15000);
@@ -381,15 +382,22 @@ Identity Rules:
       }
 
       // Process Audio
-      const audioParts = parts.filter(p => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
+      const audioParts = parts.filter(p => p.inlineData?.data);
       if (audioParts.length > 0) {
-        addLog('info', `Received ${audioParts.length} audio chunks from Gemini`);
+        console.log(`[GeminiLive] Received ${audioParts.length} potential audio/data chunks`);
       }
       
       for (const p of audioParts) {
         if (p.inlineData && audioPlayerRef.current) {
-          resetTimers();
-          await audioPlayerRef.current.playChunk(p.inlineData.data);
+          // Some versions of the API might not set mimeType explicitly on every chunk
+          const isAudio = !p.inlineData.mimeType || p.inlineData.mimeType.includes('audio');
+          if (isAudio) {
+            console.log('[GeminiLive] Playing audio chunk, length:', p.inlineData.data.length);
+            resetTimers();
+            audioPlayerRef.current.playChunk(p.inlineData.data);
+          } else {
+            console.log('[GeminiLive] Skipping non-audio chunk, mimeType:', p.inlineData.mimeType);
+          }
         }
       }
     }
@@ -410,9 +418,11 @@ Identity Rules:
   };
 
   const startSession = async () => {
+    console.log('[GeminiLive] startSession called. Profile:', profile);
     if (isConnecting || isConnected) return;
 
     if (!profile || (profile.wallet_balance || 0) <= 0) {
+      console.warn('[GeminiLive] Insufficient balance or no profile:', profile);
       addLog('error', 'Insufficient balance for Live Video/Audio session.');
       navigate('/wallet');
       return;
@@ -462,7 +472,7 @@ Identity Rules:
             setTimeout(() => {
                 if (sessionRef.current && connectedRef.current) {
                     const msg = welcomeMessage || `Hello! I am ${agentName}. How can I assist you?`;
-                    sessionRef.current.sendRealtimeInput([{ text: msg }]);
+                    sessionRef.current.sendRealtimeInput({ text: msg });
                     addLog('info', 'Sent welcome trigger');
                 }
             }, 800);

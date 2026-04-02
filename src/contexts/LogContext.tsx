@@ -56,6 +56,7 @@ export const LogProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearLogs = useCallback(() => {
     setLogs([]);
+    localStorage.removeItem('humphi_session_logs');
   }, []);
 
   return (

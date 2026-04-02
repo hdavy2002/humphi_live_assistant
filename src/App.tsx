@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, useClerk } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, useClerk, useAuth } from "@clerk/clerk-react";
 import {
   LayoutDashboard, Wallet, Mic, History, Settings,
   ExternalLink, PlusCircle, CreditCard, Loader2,
@@ -230,6 +230,7 @@ function DashboardLayout() {
    ──────────────────────────────────────────────────────────*/
 function Home() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [balance, setBalance]           = useState<number | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -240,9 +241,14 @@ function Home() {
   const fetchWalletData = async () => {
     if (!user?.id) return;
     try {
+      const token = await getToken();
       const [balanceRes, transactionsRes] = await Promise.all([
-        fetch(`/api/wallet/profile?userId=${user.id}`),
-        fetch(`/api/wallet/transactions?userId=${user.id}`),
+        fetch(`/api/wallet/profile?userId=${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`/api/wallet/transactions?userId=${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
       ]);
       if (balanceRes.ok) {
         const data = await balanceRes.json();

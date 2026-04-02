@@ -13,7 +13,7 @@ import { inngest, provisionUser, processStripeWebhook, syncMem0 } from "./lib/in
 import { clerkWebhooks } from "./routes/webhooks.js";
 import { neonAuthWebhooks } from "./routes/neon-auth-webhooks.js";
 import { getOrSet, invalidate, cacheKeys } from "./lib/cache.js";
-import { authMiddleware, requireAuth } from "../src/infrastructure/auth/clerk.js";
+import { authMiddleware, requireAuth, getAuth } from "../src/infrastructure/auth/clerk.js";
 
 // --- Shared Redis instance (reused across hot invocations) ---
 let redis: Redis | null = null;
@@ -219,12 +219,37 @@ app.post("/webhook", async (c) => {
 // 3. Wallet Routes
 app.get("/wallet/profile", requireAuth, async (c) => {
   const userId = c.req.query("userId");
+  const auth = getAuth(c);
+  
   if (!userId) return c.json({ error: "Missing userId" }, 400);
+  
+  // Security check: ensure the requested userId matches the authenticated user
+  if (auth?.userId !== userId) {
+    return c.json({ error: "Forbidden: You can only access your own profile" }, 403);
+  }
+
   try {
     const walletUseCase = getWalletUseCase();
-    const profile = await walletUseCase.getProfile(userId);
+    let profile = await walletUseCase.getProfile(userId);
+    
+    // Auto-provision if missing (common after migration)
+    if (!profile) {
+      console.log(`[API] Auto-provisioning missing profile for user: ${userId}`);
+      const profileRepo = new DrizzleProfileRepository();
+      
+      // We don't have the email easily here without calling Clerk API, 
+      // but we can at least create the record so the app doesn't crash.
+      await profileRepo.create({ 
+        id: userId, 
+        email: "" // Email will be updated by webhook later if available
+      });
+      
+      profile = await walletUseCase.getProfile(userId);
+    }
+    
     return c.json(profile);
   } catch (err: any) {
+    console.error("Error in /wallet/profile:", err);
     return c.json({ error: err.message }, 500);
   }
 });
