@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Audio processing utilities for Gemini Live API (PCM 16-bit, 16kHz)
  */
 
@@ -89,46 +89,51 @@ export class AudioRecorder {
 }
 
 export class AudioPlayer {
-  private audioContext: AudioContext;
+  private audioContext: AudioContext| null = null;
   private nextStartTime: number = 0;
-  private isMuted: boolean = false;
+  private muted: boolean = false;
 
   constructor() {
     this.audioContext = new AudioContext({ sampleRate: 24000 });
   }
 
-  setMuted(muted: boolean) {
-    this.isMuted = muted;
+  async playChunk(base64Data: string) {
+    if (!this.audioContext || this.muted) return;
+
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+
+    const binary = atob(base64Data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const pcm16 = new Int16Array(bytes.buffer);
+    const float32 = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) {
+      float32[i] = pcm16[i] / 32768;
+    }
+
+    const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
+    audioBuffer.getChannelData(0).set(float32);
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(this.audioContext.destination);
+
+    const startTime = Math.max(this.audioContext.currentTime, this.nextStartTime);
+    source.start(startTime);
+    this.nextStartTime = startTime + audioBuffer.duration;
   }
 
-  async playChunk(base64Data: string) {
-    if (this.isMuted) return;
-    try {
-      const binary = atob(base64Data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      const pcm16 = new Int16Array(bytes.buffer);
-      const float32 = new Float32Array(pcm16.length);
-      for (let i = 0; i < pcm16.length; i++) {
-        float32[i] = pcm16[i] / 32768;
-      }
-      const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
-      audioBuffer.getChannelData(0).set(float32);
-      const source = this.audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(this.audioContext.destination);
-      const startTime = Math.max(this.audioContext.currentTime, this.nextStartTime);
-      source.start(startTime);
-      this.nextStartTime = startTime + audioBuffer.duration;
-    } catch (error) {
-      console.error("Error playing audio chunk:", error);
-    }
+  setMuted(muted: boolean) {
+    this.muted = muted;
   }
 
   stop() {
-    if (this.audioContext) {
+    if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
     }
     this.audioContext = new AudioContext({ sampleRate: 24000 });

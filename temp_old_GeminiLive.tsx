@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText, 
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
@@ -16,7 +16,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
-const MODEL_NAME = "gemini-3.1-flash-live-preview";
+const MODEL_NAME = "models/gemini-2.0-flash-exp";
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -67,8 +67,8 @@ const TIER_2_LANGUAGES = [
 const ACCENTS: Record<string, string[]> = {
   "English (US)": ["Gen. American", "New York", "Southern", "Californian", "British RP", "Cockney", "Scottish", "Irish", "Australian", "New Zealand", "Indian", "South African", "Canadian", "Jamaican"],
   "Spanish (US)": ["Mexican", "Castilian (Spain)", "Argentine", "Colombian", "Chilean", "Cuban", "Puerto Rican"],
-  "French (France)": ["Parisian", "Québécois", "Belgian", "Swiss", "West African"],
-  "Portuguese (Brazil)": ["Brazilian (São Paulo)", "European (Lisbon)"],
+  "French (France)": ["Parisian", "Qu├⌐b├⌐cois", "Belgian", "Swiss", "West African"],
+  "Portuguese (Brazil)": ["Brazilian (S├úo Paulo)", "European (Lisbon)"],
   "Arabic (Egypt)": ["Egyptian", "Gulf/Saudi", "Levantine", "Moroccan", "Iraqi"],
   "German": ["Standard German", "Austrian", "Swiss German", "Bavarian"],
   "Italian": ["Standard (Tuscan)", "Roman", "Milanese", "Sicilian"],
@@ -139,11 +139,10 @@ export default function GeminiLive() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      console.log('[GeminiLive] Profile data received:', data);
       if (data && data.id) {
           setProfile({
               ...data,
-              wallet_balance: typeof data.walletBalance === 'string' ? parseFloat(data.walletBalance) : (data.walletBalance || 0)
+              wallet_balance: data.walletBalance || 0
           });
       }
     } catch (err) {
@@ -253,7 +252,7 @@ export default function GeminiLive() {
     // 15s Idle check-in
     idleTimerRef.current = setTimeout(() => {
       if (sessionRef.current && isConnected) {
-        sessionRef.current.sendRealtimeInput({ text: "Are you still there? I'm here if you need anything." });
+        sessionRef.current.sendRealtimeInput([{ text: "Are you still there? I'm here if you need anything." }]);
         addLog('info', 'Sent idle check-in');
       }
     }, 15000);
@@ -342,7 +341,7 @@ Identity Rules:
       setPermissionState('granted');
     }
 
-    // Step 2: Enumerate devices — now labels will be available
+    // Step 2: Enumerate devices ΓÇö now labels will be available
     try {
       const devs = await navigator.mediaDevices.enumerateDevices();
       
@@ -382,12 +381,15 @@ Identity Rules:
       }
 
       // Process Audio
-      const audioParts = parts.filter(p => p.inlineData?.data && p.inlineData.mimeType === 'audio/pcm;rate=24000');
+      const audioParts = parts.filter(p => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
+      if (audioParts.length > 0) {
+        addLog('info', `Received ${audioParts.length} audio chunks from Gemini`);
+      }
       
       for (const p of audioParts) {
         if (p.inlineData && audioPlayerRef.current) {
           resetTimers();
-          audioPlayerRef.current.playChunk(p.inlineData.data);
+          await audioPlayerRef.current.playChunk(p.inlineData.data);
         }
       }
     }
@@ -408,11 +410,9 @@ Identity Rules:
   };
 
   const startSession = async () => {
-    console.log('[GeminiLive] startSession called. Profile:', profile);
     if (isConnecting || isConnected) return;
 
     if (!profile || (profile.wallet_balance || 0) <= 0) {
-      console.warn('[GeminiLive] Insufficient balance or no profile:', profile);
       addLog('error', 'Insufficient balance for Live Video/Audio session.');
       navigate('/wallet');
       return;
@@ -424,24 +424,28 @@ Identity Rules:
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
-      let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey && typeof process !== 'undefined' && process.env) {
-        apiKey = process.env.GEMINI_API_KEY;
-      }
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key configuration error");
 
-      console.log('[GeminiLive] Initializing GoogleGenAI with API key length:', apiKey.length);
       const ai = new GoogleGenAI({ apiKey });
       audioPlayerRef.current = new AudioPlayer();
       audioPlayerRef.current.setMuted(isSpeakerMuted);
 
       const langCode = TIER_1_LANGUAGES.find(l => l.name === selectedLanguage)?.code || 'en-US';
 
-      console.log('[GeminiLive] Calling ai.live.connect...');
       const session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
           responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            languageCode: langCode,
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: selectedVoice as any
+              }
+            }
+          },
+          systemInstruction: buildSystemPrompt()
         },
         callbacks: {
           onopen: () => {
@@ -458,7 +462,7 @@ Identity Rules:
             setTimeout(() => {
                 if (sessionRef.current && connectedRef.current) {
                     const msg = welcomeMessage || `Hello! I am ${agentName}. How can I assist you?`;
-                    sessionRef.current.sendRealtimeInput({ text: msg });
+                    sessionRef.current.sendRealtimeInput([{ text: msg }]);
                     addLog('info', 'Sent welcome trigger');
                 }
             }, 800);
@@ -863,7 +867,7 @@ Identity Rules:
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative selection:bg-[#22C9E8]/30">
-      {/* ── Permissions Denied Modal ─────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Permissions Denied Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <AnimatePresence>
         {permissionState === 'denied' && (
           <motion.div
@@ -898,7 +902,7 @@ Identity Rules:
               <div className="px-6 pb-6 space-y-3">
                 <div className="text-[9px] uppercase font-black tracking-widest text-white/30 mb-3">How to fix this</div>
                 {[
-                  { num: '1', text: 'Click the 🔒 lock or camera icon in your browser\'s address bar' },
+                  { num: '1', text: 'Click the ≡ƒöÆ lock or camera icon in your browser\'s address bar' },
                   { num: '2', text: permissionDeniedType === 'both' ? 'Set Microphone and Camera to "Allow"' : permissionDeniedType === 'mic' ? 'Set Microphone to "Allow"' : 'Set Camera to "Allow"' },
                   { num: '3', text: 'Refresh this page and try again' },
                 ].map(step => (
@@ -934,7 +938,7 @@ Identity Rules:
         )}
       </AnimatePresence>
 
-      {/* ── Mobile Sidebar Menu ──────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Mobile Sidebar Menu ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
@@ -997,7 +1001,7 @@ Identity Rules:
         )}
       </AnimatePresence>
 
-      {/* ── Unified Hardware Header ───────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Unified Hardware Header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <header className="shrink-0 p-3 pt-4 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20 relative">
         <div className="flex items-center gap-3 md:gap-4 leading-none">
           {/* Mobile Menu Trigger */}
@@ -1096,7 +1100,7 @@ Identity Rules:
             <Settings size={18} className={cn("transition-transform duration-500", isHardwareMenuOpen && "rotate-90 text-[#22C9E8]")} />
           </button>
 
-          {/* ── Hardware Diagnostics Hub (Dropdown) ─────────────────── */}
+          {/* ΓöÇΓöÇ Hardware Diagnostics Hub (Dropdown) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
           <AnimatePresence>
             {isHardwareMenuOpen && (
               <motion.div
@@ -1400,7 +1404,7 @@ Identity Rules:
         </div>
       </header>
 
-      {/* ── Area 1: Responsive Stream Container ───────────────────────── */}
+      {/* ΓöÇΓöÇ Area 1: Responsive Stream Container ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
         <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group">
           <AnimatePresence mode="wait">
@@ -1490,7 +1494,7 @@ Identity Rules:
           </AnimatePresence>
         </div>
 
-        {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
+        {/* ΓöÇΓöÇ Area 3: Large Responsive Control Tabs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
           <div className="p-2 bg-[#1A2232] rounded-[32px] md:rounded-[40px] border-4 border-black/40 shadow-2xl flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
             <button 
