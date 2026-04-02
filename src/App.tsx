@@ -12,6 +12,8 @@ import RecordsPage from "./components/Records";
 import ProfilePage from "./components/Profile";
 import GeminiLive from "./components/GeminiLive";
 import ConnectorsPage from "./components/Connectors";
+import LogsPage from "./components/Logs";
+import { LogProvider } from "./contexts/LogContext";
 
 /* ──────────────────────────────────────────────────────────
    SIDEBAR ITEM
@@ -1008,7 +1010,7 @@ function WelcomeScreen() {
    ──────────────────────────────────────────────────────────*/
 export default function App() {
   return (
-    <>
+    <LogProvider>
       <SignedIn>
         <Routes>
           <Route element={<DashboardLayout />}>
@@ -1018,6 +1020,7 @@ export default function App() {
             <Route path="/profile"     element={<ProfilePage />} />
             <Route path="/recordings"  element={<GeminiLive />} />
             <Route path="/connectors"  element={<ConnectorsPage />} />
+            <Route path="/logs"        element={<LogsPage />} />
             <Route path="*"            element={<Home />} />
           </Route>
         </Routes>
@@ -1025,6 +1028,6 @@ export default function App() {
       <SignedOut>
         <WelcomeScreen />
       </SignedOut>
-    </>
+    </LogProvider>
   );
 }

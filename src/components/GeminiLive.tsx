@@ -13,6 +13,8 @@ import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
+import { useLogs } from '../contexts/LogContext';
+import { LogItem } from './LogItem';
 
 const MODEL_NAME = "gemini-3.1-flash-live-preview";
 
@@ -24,49 +26,7 @@ const VOICE_GENDERS: Record<string, string> = {
   "Fenrir": "masculine"
 };
 
-const LogItem: React.FC<{ log: LogEntry }> = ({ log }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const hasDetails = !!log.details;
-
-  return (
-    <div className="border-b border-white/5 last:border-0 py-1">
-      <div 
-        className={cn(
-          "flex items-start gap-2 group cursor-pointer hover:bg-white/5 p-1 rounded transition-colors",
-          !isExpanded && "text-white/40"
-        )}
-        onClick={() => hasDetails && setIsExpanded(!isExpanded)}
-      >
-        <span className="text-[9px] text-white/20 shrink-0 mt-0.5">
-          {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "px-1 rounded text-[8px] font-bold uppercase tracking-widest",
-              log.type === 'info' ? "bg-blue-500/10 text-blue-400" :
-              log.type === 'error' ? "bg-red-500/10 text-red-400" :
-              "bg-green-500/10 text-green-400"
-            )}>
-              {log.type}
-            </span>
-            <span className="truncate">{log.message}</span>
-            {hasDetails && (
-              <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-              </span>
-            )}
-          </div>
-          {isExpanded && log.details && (
-            <pre className="mt-1 p-2 bg-black/40 rounded text-[9px] overflow-x-auto text-white/60 leading-relaxed border border-white/5">
-              {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
-            </pre>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// Local LogItem removed - handled by LogContext and standalone Logs page
 
 export default function GeminiLive() {
   const { user } = useUser();
@@ -108,7 +68,7 @@ export default function GeminiLive() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const { logs, addLog, clearLogs } = useLogs();
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
   
@@ -175,15 +135,7 @@ export default function GeminiLive() {
     }
   };
 
-  const addLog = (type: LogEntry['type'], message: string, details?: any) => {
-    setLogs(prev => [...prev, {
-      id: Math.random().toString(36).slice(2),
-      timestamp: new Date(),
-      type,
-      message,
-      details
-    }]);
-  };
+  // addLog now comes from useLogs() context
 
   const startSession = async () => {
     if (isConnecting || isConnected) return;
@@ -709,12 +661,12 @@ export default function GeminiLive() {
         <div className="hidden md:flex items-center gap-8 px-6 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
           <div className="flex flex-col items-center">
             <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Tokens</span>
-            <span className="text-[11px] font-mono font-bold text-blue-400 leading-none">{tokenUsage.total.toLocaleString()}</span>
+            <span className="text-[11px] font-bold text-blue-400 leading-none">{tokenUsage.total.toLocaleString()}</span>
           </div>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex flex-col items-center">
             <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Cost</span>
-            <span className="text-[11px] font-mono font-bold text-green-400 leading-none">
+            <span className="text-[11px] font-bold text-green-400 leading-none">
               ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
             </span>
           </div>
@@ -724,7 +676,7 @@ export default function GeminiLive() {
             className="flex flex-col items-center group transition-colors"
           >
             <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5 transition-colors group-hover:text-orange-400">Wallet</span>
-            <span className="text-[11px] font-mono font-bold text-orange-400 leading-none group-active:scale-95 transition-transform">
+            <span className="text-[11px] font-bold text-orange-400 leading-none group-active:scale-95 transition-transform">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </span>
           </button>
@@ -904,10 +856,10 @@ export default function GeminiLive() {
                 </div>
                 <div className="flex items-center gap-4">
                   <button onClick={copyLogs} className="text-[10px] text-blue-400 hover:text-blue-300 uppercase font-bold tracking-widest">Copy All</button>
-                  <button onClick={() => setLogs([])} className="text-[10px] text-white/20 hover:text-white/60 uppercase font-bold tracking-widest">Clear</button>
+                  <button onClick={clearLogs} className="text-[10px] text-white/20 hover:text-white/60 uppercase font-bold tracking-widest">Clear</button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 text-[10px] space-y-2">
                 {logs.length === 0 && (
                   <div className="h-full flex items-center justify-center text-white/10 italic">No logs recorded yet.</div>
                 )}

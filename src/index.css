@@ -56,6 +56,10 @@
   --r-full: 9999px;
 }
 
+.font-comfortaa {
+  font-family: 'Comfortaa', system-ui, sans-serif !important;
+}
+
 /* ──────────────────────────────────────────────────────────
    GLOBAL RESET & TYPOGRAPHY
    ──────────────────────────────────────────────────────────*/
