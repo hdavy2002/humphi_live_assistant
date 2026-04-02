@@ -635,9 +635,9 @@ export default function GeminiLive() {
       <header className="shrink-0 p-3 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20">
         {/* Left: Connection & Start Button */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/5 min-w-[90px]">
-            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-green-500 animate-pulse" : "bg-white/20")} />
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/60 leading-none">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2232] rounded-full border-2 border-black/20 min-w-[90px]">
+            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-[#22C9E8] animate-pulse" : "bg-white/10")} />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white leading-none">
               {isConnected ? "Live" : "Offline"}
             </span>
           </div>
@@ -646,27 +646,27 @@ export default function GeminiLive() {
             onClick={isConnected ? stopSession : startSession}
             disabled={isConnecting}
             className={cn(
-              "h-9 px-6 rounded-full font-bold text-[10px] uppercase tracking-[0.15em] transition-all flex items-center justify-center",
+              "h-9 px-6 transition-all flex items-center justify-center",
               isConnected 
-                ? "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white" 
-                : "bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 active:scale-95"
+                ? "btn-primary rounded-full !border-red-500/50 !bg-red-500/10 !text-red-500 hover:!bg-red-500 hover:!text-white" 
+                : "btn-cta rounded-full active:scale-95 shadow-none"
             )}
-            style={{ fontFamily: "'Comfortaa', sans-serif" }}
+            style={{ fontFamily: "'Comfortaa', sans-serif", fontSize: '10px' }}
           >
-            {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
+            {isConnecting ? "..." : isConnected ? "End Session" : "Start Session →"}
           </button>
         </div>
 
         {/* Center: Usage Metrics */}
-        <div className="hidden md:flex items-center gap-8 px-6 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+        <div className="hidden md:flex items-center gap-8 px-6 py-1.5 rounded-full bg-[#1A2232] border-2 border-black/20">
           <div className="flex flex-col items-center">
-            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Tokens</span>
-            <span className="text-[11px] font-bold text-blue-400 leading-none">{tokenUsage.total.toLocaleString()}</span>
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Tokens</span>
+            <span className="text-[11px] font-bold text-[#22C9E8] leading-none">{tokenUsage.total.toLocaleString()}</span>
           </div>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex flex-col items-center">
-            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5">Cost</span>
-            <span className="text-[11px] font-bold text-green-400 leading-none">
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Cost</span>
+            <span className="text-[11px] font-bold text-[#22C9E8] leading-none">
               ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
             </span>
           </div>
@@ -675,8 +675,8 @@ export default function GeminiLive() {
             onClick={() => navigate('/wallet')}
             className="flex flex-col items-center group transition-colors"
           >
-            <span className="text-[7px] text-white/30 uppercase font-black tracking-widest mb-0.5 transition-colors group-hover:text-orange-400">Wallet</span>
-            <span className="text-[11px] font-bold text-orange-400 leading-none group-active:scale-95 transition-transform">
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5 transition-colors group-hover:text-[#FF6619]">Wallet</span>
+            <span className="text-[11px] font-bold text-[#FF6619] leading-none group-active:scale-95 transition-transform">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </span>
           </button>

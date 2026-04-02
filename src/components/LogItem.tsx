@@ -12,7 +12,7 @@ export const LogItem: React.FC<{ log: LogEntry }> = ({ log }) => {
       <div 
         className={cn(
           "flex items-start gap-2 group cursor-pointer hover:bg-white/10 p-1.5 rounded transition-all duration-200",
-          isExpanded ? "bg-white/5" : "text-white/40"
+          isExpanded ? "bg-white/5" : "text-white/60"
         )}
         onClick={() => hasDetails && setIsExpanded(!isExpanded)}
       >
@@ -22,7 +22,7 @@ export const LogItem: React.FC<{ log: LogEntry }> = ({ log }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={cn(
-              "px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tighter",
+              "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-tighter",
               log.type === 'info' ? "bg-blue-500/20 text-blue-400" :
               log.type === 'error' ? "bg-red-500/20 text-red-400" :
               log.type === 'warning' ? "bg-amber-500/20 text-amber-400" :
@@ -46,7 +46,7 @@ export const LogItem: React.FC<{ log: LogEntry }> = ({ log }) => {
           {isExpanded && log.details && (
             <div className="mt-2 relative">
                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-white/10 rounded-full" />
-               <pre className="ml-3 p-3 bg-black/60 rounded-lg text-[10px] overflow-x-auto text-cyan-400/80 leading-relaxed border border-white/5 backdrop-blur-md">
+               <pre className="ml-3 p-3 bg-black/40 rounded-lg text-[10px] overflow-x-auto text-[#22C9E8] leading-relaxed border border-white/10 backdrop-blur-md">
                 {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
               </pre>
             </div>

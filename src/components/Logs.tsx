@@ -66,24 +66,24 @@ const LogsPage: React.FC = () => {
             <div className="p-2.5 bg-white/10 rounded-xl border border-white/10 shadow-xl backdrop-blur-md">
               <Terminal className="text-cyan-400" size={24} />
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-              System <span className="text-cyan-400">Operations</span>
+            <h1 className="text-3xl font-bold text-[#0D1117] tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+              System <span className="text-[#FF6619]">Operations</span>
             </h1>
           </div>
-          <p className="text-white/40 font-medium ml-1">Real-time infrastructure and AI heartbeat monitor.</p>
+          <p className="text-[#0D1117]/60 font-bold ml-1">Real-time infrastructure and AI heartbeat monitor.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
             onClick={downloadLogs}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+            className="btn-primary"
           >
             <Download size={16} />
             Export
           </button>
           <button 
             onClick={copyToClipboard}
-            className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 border border-cyan-400/50 rounded-xl text-sm font-bold text-black transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
+            className="btn-cta"
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copied' : 'Copy All'}
@@ -104,7 +104,7 @@ const LogsPage: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-5 bg-white/5 border border-white/10 rounded-[24px] backdrop-blur-xl relative overflow-hidden group"
+            className="p-5 bg-[#0D1117] border-2 border-black/20 rounded-[24px] shadow-xl relative overflow-hidden group"
           >
             <div className={cn("absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity", stat.color)}>
               <stat.icon size={48} />
@@ -113,25 +113,25 @@ const LogsPage: React.FC = () => {
               <div className={cn("p-1.5 rounded-lg", stat.bg)}>
                 <stat.icon size={16} className={stat.color} />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{stat.label}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{stat.label}</span>
             </div>
-            <div className="text-2xl font-black text-white">{stat.value}</div>
+            <div className="text-2xl font-bold text-white">{stat.value}</div>
           </motion.div>
         ))}
       </div>
 
       {/* Main Log Viewer */}
-      <div className="flex-1 min-h-[500px] bg-[#0D1117]/80 border border-white/10 rounded-[32px] shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl">
+      <div className="flex-1 min-h-[500px] bg-[#0D1117] border-2 border-black/20 rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
         {/* Toolbar */}
-        <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row items-center gap-4 bg-white/5">
+        <div className="p-4 border-b border-black/20 flex flex-col sm:flex-row items-center gap-4 bg-[#1A2232]">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
             <input 
               type="text" 
               placeholder="Search session logs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-500/50 transition-colors"
+              className="w-full bg-[#0D1117] border border-black/20 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#22C9E8]/50 transition-colors font-bold"
             />
           </div>
           
