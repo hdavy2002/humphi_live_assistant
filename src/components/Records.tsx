@@ -54,7 +54,7 @@ export default function Records() {
         <div>
           <h1
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: '1.875rem',
               color: '#0D1117',
@@ -64,7 +64,7 @@ export default function Records() {
           >
             Transaction History
           </h1>
-          <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+          <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
             All your wallet activity in one place.
           </p>
         </div>
@@ -90,7 +90,7 @@ export default function Records() {
                 color: filter === f ? '#0D1117' : 'rgba(255,255,255,0.50)',
                 border: 'none',
                 cursor: 'pointer',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontSize: '0.8125rem',
                 fontWeight: 700,
                 textTransform: 'capitalize',
@@ -117,7 +117,7 @@ export default function Records() {
           }}
         >
           <Loader2 size={28} className="animate-spin" style={{ color: '#22C9E8' }} />
-          <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+          <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
             Loading transactions...
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function Records() {
           <History size={36} style={{ margin: '0 auto 1rem', color: '#E2EBF0' }} />
           <p
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 700,
               fontSize: '1rem',
               color: '#0D1117',
@@ -143,7 +143,7 @@ export default function Records() {
           >
             No Records
           </p>
-          <p style={{ color: '#7a9aa8', fontSize: '0.875rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+          <p style={{ color: '#7a9aa8', fontSize: '0.875rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
             {filter === 'all'
               ? 'Your transaction history will appear here.'
               : `No ${filter === 'topup' ? 'top-up' : 'usage'} transactions found.`}
@@ -175,7 +175,7 @@ export default function Records() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 color: 'rgba(255,255,255,0.40)',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
               }}
             >
               Transaction
@@ -187,7 +187,7 @@ export default function Records() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 color: 'rgba(255,255,255,0.40)',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
               }}
             >
               Amount
@@ -235,7 +235,7 @@ export default function Records() {
                   <div>
                     <p
                       style={{
-                        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                        fontFamily: "'Comfortaa', system-ui, sans-serif",
                         fontWeight: 600,
                         fontSize: '0.9375rem',
                         color: '#0D1117',
@@ -254,7 +254,7 @@ export default function Records() {
                         fontWeight: 600,
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
-                        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                        fontFamily: "'Comfortaa', system-ui, sans-serif",
                       }}
                     >
                       <Clock size={10} />
@@ -273,7 +273,7 @@ export default function Records() {
                 <div style={{ textAlign: 'right' }}>
                   <p
                     style={{
-                      fontFamily: "'Sora', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                       fontWeight: 800,
                       fontSize: '1rem',
                       color: isCredit ? '#22C9E8' : '#FF6619',
@@ -288,7 +288,7 @@ export default function Records() {
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
                       color: '#C2D4DC',
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                     }}
                   >
                     {tx.status}

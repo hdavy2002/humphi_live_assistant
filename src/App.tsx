@@ -77,7 +77,7 @@ function DashboardLayout() {
               alignItems: "center",
               justifyContent: "center",
               color: "#0D1117",
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: 18,
               flexShrink: 0,
@@ -88,7 +88,7 @@ function DashboardLayout() {
           </div>
           <span
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.1rem",
               color: "#FFFFFF",
@@ -152,7 +152,7 @@ function DashboardLayout() {
             <div className="flex flex-col min-w-0 flex-1">
               <span
                 style={{
-                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
                   fontWeight: 700,
                   fontSize: "0.875rem",
                   color: "#FFFFFF",
@@ -255,7 +255,7 @@ function Home() {
         <div>
           <h1
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.875rem",
               color: "#0D1117",
@@ -271,7 +271,7 @@ function Home() {
           <p style={{
             color: "#1A2232",
             fontSize: "1rem",
-            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             lineHeight: 1.6,
             fontWeight: 500,
           }}>
@@ -348,7 +348,7 @@ function Home() {
           </p>
           <p
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "2.25rem",
               color: "#FFFFFF",
@@ -371,7 +371,7 @@ function Home() {
               cursor: "pointer",
               padding: 0,
               marginTop: "0.875rem",
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               letterSpacing: "-0.01em",
             }}
           >
@@ -404,7 +404,7 @@ function Home() {
           </p>
           <p
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "2.25rem",
               color: "#0D1117",
@@ -470,7 +470,7 @@ function Home() {
           </p>
           <p
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "2.25rem",
               color: "#FFFFFF",
@@ -484,7 +484,7 @@ function Home() {
               marginTop: "0.875rem",
               fontSize: "0.8rem",
               color: "rgba(255,255,255,0.85)",
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 500,
               fontStyle: "italic",
             }}
@@ -517,7 +517,7 @@ function Home() {
               alignItems: "flex-start",
               gap: "0.625rem",
               cursor: "pointer",
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontSize: "0.875rem",
               fontWeight: 700,
               transition: "transform 0.15s, box-shadow 0.15s",
@@ -544,7 +544,7 @@ function Home() {
         <div className="flex items-center justify-between mb-4">
           <h2
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.125rem",
               color: "#0D1117",
@@ -565,7 +565,7 @@ function Home() {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               padding: "0.375rem 0.875rem",
             }}
           >
@@ -613,7 +613,7 @@ function Home() {
                   </div>
                   <div>
                     <p style={{
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                       fontWeight: 600,
                       fontSize: "0.9rem",
                       color: "#0D1117",
@@ -631,7 +631,7 @@ function Home() {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{
-                    fontFamily: "'Sora', system-ui, sans-serif",
+                    fontFamily: "'Comfortaa', system-ui, sans-serif",
                     fontWeight: 800,
                     fontSize: "1rem",
                     color: tx.amount > 0 ? "#0AABCA" : "#FF6619",
@@ -652,7 +652,7 @@ function Home() {
                 <History size={28} style={{ margin: "0 auto 0.75rem", color: "#94a3b8" }} />
               )}
               <p style={{
-                fontFamily: "'Sora', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontWeight: 700,
                 fontSize: "0.9rem",
                 color: "#4A5568",
@@ -660,7 +660,7 @@ function Home() {
                 {loading ? "Loading activity..." : "No recent activity"}
               </p>
               {!loading && (
-                <p style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: 6, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+                <p style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: 6, fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
                   Start a session to see your activity here
                 </p>
               )}
@@ -684,7 +684,7 @@ function WelcomeScreen() {
       style={{
         minHeight: "100vh",
         background: "#22C9E8",
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        fontFamily: "'Comfortaa', system-ui, sans-serif",
         display: "flex",
         flexDirection: "column",
       }}
@@ -702,7 +702,7 @@ function WelcomeScreen() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.5rem",
               color: "#0D1117",
@@ -720,7 +720,7 @@ function WelcomeScreen() {
               key={l}
               href="#"
               style={{
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontSize: "0.9rem",
                 fontWeight: 600,
                 color: "#0D1117",
@@ -783,7 +783,7 @@ function WelcomeScreen() {
         {/* Hero headline */}
         <h1
           style={{
-            fontFamily: "'Sora', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontWeight: 800,
             fontSize: "clamp(2.75rem, 7vw, 5rem)",
             color: "#0D1117",
@@ -829,7 +829,7 @@ function WelcomeScreen() {
         >
           <div style={{ textAlign: "center" }}>
             <p style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.75rem",
               color: "#FFFFFF",
@@ -842,7 +842,7 @@ function WelcomeScreen() {
           <span style={{ color: "rgba(255,255,255,0.20)", fontSize: "1.5rem", fontWeight: 200 }}>/</span>
           <div style={{ textAlign: "center" }}>
             <p style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: "1.75rem",
               color: "#FF6619",
@@ -878,7 +878,7 @@ function WelcomeScreen() {
                 padding: "0.9375rem 2.25rem",
                 background: "linear-gradient(135deg, #8B5CF6, #7C3AED)",
                 color: "#FFFFFF",
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontWeight: 700,
                 fontSize: "0.9375rem",
                 border: "none",

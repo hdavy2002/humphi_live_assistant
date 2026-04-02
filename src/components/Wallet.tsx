@@ -228,7 +228,7 @@ export default function Wallet() {
       <div style={{ marginBottom: '2rem' }}>
         <h1
           style={{
-            fontFamily: "'Sora', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontWeight: 800,
             fontSize: '1.875rem',
             color: '#0D1117',
@@ -238,7 +238,7 @@ export default function Wallet() {
         >
           Wallet & Billing
         </h1>
-        <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+        <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
           Manage your balance and payment methods.
         </p>
       </div>
@@ -283,7 +283,7 @@ export default function Wallet() {
           </p>
           <h2
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: '2.75rem',
               color: '#ffffff',
@@ -374,7 +374,7 @@ export default function Wallet() {
                       fontSize: '0.9375rem',
                       fontWeight: 800,
                       cursor: 'pointer',
-                      fontFamily: "'Sora', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                       transition: 'all 0.15s',
                       boxShadow: amount === val ? '0 4px 16px rgba(13,17,23,0.20)' : 'none',
                     }}
@@ -463,7 +463,7 @@ export default function Wallet() {
                   border: 'none',
                   borderBottom: '1px solid #EEF4F7',
                   cursor: 'pointer',
-                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
                   transition: 'background-color 0.15s',
                 }}
                 onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
@@ -492,7 +492,7 @@ export default function Wallet() {
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
                   transition: 'background-color 0.15s',
                 }}
                 onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
@@ -531,7 +531,7 @@ export default function Wallet() {
                 <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Secure Checkout</p>
                 <p
                   style={{
-                    fontFamily: "'Sora', system-ui, sans-serif",
+                    fontFamily: "'Comfortaa', system-ui, sans-serif",
                     fontWeight: 800,
                     fontSize: '1.5rem',
                     color: '#22C9E8',
@@ -569,7 +569,7 @@ export default function Wallet() {
                     colorBackground: '#ffffff',
                     colorText: '#0D1117',
                     colorDanger: '#FF6619',
-                    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                    fontFamily: "'Comfortaa', system-ui, sans-serif",
                     spacingUnit: '4px',
                     borderRadius: '12px',
                   },

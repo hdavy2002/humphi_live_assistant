@@ -57,7 +57,7 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
             fontWeight: 800,
             letterSpacing: '0.09em',
             textTransform: 'uppercase',
-            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             ...badgeStyle[connector.badge],
           }}
         >
@@ -85,7 +85,7 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
       <div>
         <h3
           style={{
-            fontFamily: "'Sora', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontWeight: 800,
             fontSize: '1.0625rem',
             color: '#0D1117',
@@ -97,7 +97,7 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
         </h3>
         <p
           style={{
-            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontSize: '0.875rem',
             color: '#4a6070',
             lineHeight: 1.6,
@@ -120,7 +120,7 @@ function ConnectorCard({ connector, onToggle }: { connector: Connector; onToggle
             ? 'transparent'
             : 'linear-gradient(135deg, #0D1117, #1A2232)',
           color: connector.connected ? '#22C9E8' : '#ffffff',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          fontFamily: "'Comfortaa', system-ui, sans-serif",
           fontWeight: 700,
           fontSize: '0.875rem',
           cursor: 'pointer',
@@ -233,7 +233,7 @@ export default function Connectors() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
           <h1
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: '1.875rem',
               color: '#0D1117',
@@ -247,7 +247,7 @@ export default function Connectors() {
               style={{
                 background: 'rgba(34,201,232,0.15)',
                 color: '#0D1117',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 fontSize: '0.8rem',
                 fontWeight: 700,
                 padding: '0.35rem 1rem',
@@ -261,7 +261,7 @@ export default function Connectors() {
         </div>
         <p
           style={{
-            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             color: '#1A2232',
             fontSize: '1rem',
             fontWeight: 500,
@@ -302,7 +302,7 @@ export default function Connectors() {
             border: '1.5px solid #E2EBF0',
             borderRadius: '999px',
             background: '#ffffff',
-            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontSize: '0.9rem',
             fontWeight: 500,
             color: '#0D1117',
@@ -376,7 +376,7 @@ export default function Connectors() {
               fontWeight: 800,
               letterSpacing: '0.09em',
               textTransform: 'uppercase',
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               marginBottom: '1rem',
               border: '1px solid rgba(34,201,232,0.25)',
             }}
@@ -385,7 +385,7 @@ export default function Connectors() {
           </span>
           <h2
             style={{
-              fontFamily: "'Sora', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 800,
               fontSize: '1.5rem',
               color: '#ffffff',
@@ -397,7 +397,7 @@ export default function Connectors() {
           </h2>
           <p
             style={{
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontSize: '0.9375rem',
               color: 'rgba(255,255,255,0.65)',
               maxWidth: 440,
@@ -415,7 +415,7 @@ export default function Connectors() {
               border: '2px solid rgba(255,255,255,0.25)',
               borderRadius: '999px',
               color: '#ffffff',
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
               fontWeight: 700,
               fontSize: '0.9rem',
               cursor: 'pointer',

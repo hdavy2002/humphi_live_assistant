@@ -30,7 +30,7 @@ export default function Profile() {
         }}
       >
         <Loader2 size={24} className="animate-spin" style={{ color: '#22C9E8' }} />
-        <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+        <p style={{ color: '#7a9aa8', fontSize: '0.9rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
           Loading profile...
         </p>
       </div>
@@ -45,7 +45,7 @@ export default function Profile() {
           alignItems: 'center',
           justifyContent: 'center',
           color: '#7a9aa8',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          fontFamily: "'Comfortaa', system-ui, sans-serif",
         }}
       >
         Please sign in to view your profile.
@@ -65,7 +65,7 @@ export default function Profile() {
       <div style={{ marginBottom: '2rem' }}>
         <h1
           style={{
-            fontFamily: "'Sora', system-ui, sans-serif",
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
             fontWeight: 800,
             fontSize: '1.875rem',
             color: '#0D1117',
@@ -75,7 +75,7 @@ export default function Profile() {
         >
           Settings
         </h1>
-        <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+        <p style={{ color: '#1A2232', fontSize: '1rem', fontWeight: 500, fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
           Manage your account and preferences.
         </p>
       </div>
@@ -141,7 +141,7 @@ export default function Profile() {
             <div>
               <h2
                 style={{
-                  fontFamily: "'Sora', system-ui, sans-serif",
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
                   fontWeight: 800,
                   fontSize: '1.375rem',
                   color: '#ffffff',
@@ -190,7 +190,7 @@ export default function Profile() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.09em',
                   color: 'rgba(255,255,255,0.40)',
-                  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
                 }}
               >
                 Account Information
@@ -231,14 +231,14 @@ export default function Profile() {
                       letterSpacing: '0.07em',
                       color: '#7a9aa8',
                       marginBottom: '0.125rem',
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                     }}
                   >
                     Email Address
                   </p>
                   <p
                     style={{
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                       fontSize: '0.9375rem',
                       color: '#0D1117',
                       fontWeight: 600,
@@ -285,7 +285,7 @@ export default function Profile() {
                       letterSpacing: '0.07em',
                       color: '#7a9aa8',
                       marginBottom: '0.125rem',
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
                     }}
                   >
                     User ID
@@ -327,7 +327,7 @@ export default function Profile() {
                 border: 'none',
                 borderBottom: '1px solid #EEF4F7',
                 cursor: 'pointer',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 transition: 'background-color 0.15s',
               }}
               onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
@@ -353,7 +353,7 @@ export default function Profile() {
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
                 transition: 'background-color 0.15s',
               }}
               onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F7FAFC')}
