@@ -16,7 +16,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
-const MODEL_NAME = "gemini-3.1-flash-live-preview";
+const MODEL_NAME = "models/gemini-3.1-flash-live-preview";
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -424,60 +424,71 @@ Identity Rules:
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
-      let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey && typeof process !== 'undefined' && process.env) {
-        apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error('[GeminiLive] API Key missing');
+        throw new Error("API Key NOT found in environment. Check .env.local or Vercel settings.");
       }
-      if (!apiKey) throw new Error("API Key configuration error");
 
-      console.log('[GeminiLive] Initializing GoogleGenAI with API key length:', apiKey.length);
+      console.log('[GeminiLive] Initializing GoogleGenAI...');
       const ai = new GoogleGenAI({ apiKey });
       audioPlayerRef.current = new AudioPlayer();
       audioPlayerRef.current.setMuted(isSpeakerMuted);
 
       const langCode = TIER_1_LANGUAGES.find(l => l.name === selectedLanguage)?.code || 'en-US';
 
-      console.log('[GeminiLive] Calling ai.live.connect...');
+      console.log('[GeminiLive] Requesting connection to:', MODEL_NAME);
       const session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
           responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            languageCode: langCode,
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: selectedVoice as any
+              }
+            }
+          },
+          systemInstruction: buildSystemPrompt()
         },
         callbacks: {
           onopen: () => {
+            console.log('[GeminiLive] WebSocket OPEN');
             setIsConnected(true);
             connectedRef.current = true;
             setIsConnecting(false);
-            addLog('info', `Connected as ${agentName} (${agentRole})`);
+            addLog('info', `Assistant ${agentName} is online!`);
             
             setIsMicOn(true);
             startAudioCapture();
             resetTimers();
 
-            // Auto-trigger welcome
             setTimeout(() => {
                 if (sessionRef.current && connectedRef.current) {
                     const msg = welcomeMessage || `Hello! I am ${agentName}. How can I assist you?`;
                     sessionRef.current.sendRealtimeInput({ text: msg });
-                    addLog('info', 'Sent welcome trigger');
                 }
             }, 800);
           },
           onmessage: (message: LiveServerMessage) => handleServerMessage(message),
-          onclose: () => {
+          onclose: (event) => {
+            console.warn('[GeminiLive] WebSocket CLOSE:', event);
             connectedRef.current = false;
             stopSession();
           },
           onerror: (err) => {
-            addLog('error', 'Connection dropped', err);
+            console.error('[GeminiLive] WebSocket ERROR:', err);
+            addLog('error', `Connection Error: ${err.message || 'Unknown network error'}`);
             stopSession();
           }
         }
       });
 
       sessionRef.current = session;
-    } catch (err) {
-      addLog('error', 'Authentication or Network failure', err);
+    } catch (err: any) {
+      console.error('[GeminiLive] Session start failed:', err);
+      addLog('error', `Session start failed: ${err.message || 'Authentication error'}`);
       setIsConnecting(false);
       stopSession();
     }
