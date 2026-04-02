@@ -16,15 +16,98 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
-const MODEL_NAME = "gemini-3.1-flash-live-preview";
+const MODEL_NAME = "models/gemini-2.0-flash-exp";
 
-const VOICE_GENDERS: Record<string, string> = {
-  "Zephyr": "masculine",
-  "Puck": "feminine",
-  "Charon": "masculine",
-  "Kore": "feminine",
-  "Fenrir": "masculine"
+const ROLE_PRESETS: Record<string, string> = {
+  "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
+  "Creative Partner": "You are a collaborative creative partner. You brainstorm ideas, offer unique perspectives, and encourage outside-the-box thinking. Your tone is supportive and imaginative.",
+  "Technical Expert": "You are a senior-level software architect and technical lead. You provide precise technical explanations, code-focused solutions, and architectural best practices.",
+  "Therapist": "You are a compassionate listener. You validate feelings first, use empathetic language, and help the user explore their emotions without judgment.",
+  "Friendly Companion": "You are a warm, casual friend. You joke around, use informal language, and are always ready for a lighthearted chat. You avoid being overly formal.",
+  "Strict Mentor": "You are a demanding but fair mentor. You push the user to achieve their potential and point out areas for improvement directly. You do not tolerate excuses.",
+  "IT Manager": "You advise on enterprise IT, policy, vendor selection, and strategic infrastructure. You speak professionally and focus on business value and ROI."
 };
+
+const TIER_1_LANGUAGES = [
+  { name: "Arabic (Egypt)", code: "ar-EG" },
+  { name: "Bengali (Bangladesh)", code: "bn-BD" },
+  { name: "Dutch", code: "nl-NL" },
+  { name: "English (US)", code: "en-US" },
+  { name: "French (France)", code: "fr-FR" },
+  { name: "German", code: "de-DE" },
+  { name: "Hindi", code: "hi-IN" },
+  { name: "Indonesian", code: "id-ID" },
+  { name: "Italian", code: "it-IT" },
+  { name: "Japanese", code: "ja-JP" },
+  { name: "Korean", code: "ko-KR" },
+  { name: "Marathi", code: "mr-IN" },
+  { name: "Polish", code: "pl-PL" },
+  { name: "Portuguese (Brazil)", code: "pt-BR" },
+  { name: "Romanian", code: "ro-RO" },
+  { name: "Russian", code: "ru-RU" },
+  { name: "Spanish (US)", code: "es-US" },
+  { name: "Tamil", code: "ta-IN" },
+  { name: "Telugu", code: "te-IN" },
+  { name: "Thai", code: "th-TH" },
+  { name: "Turkish", code: "tr-TR" },
+  { name: "Ukrainian", code: "uk-UA" },
+  { name: "Vietnamese", code: "vi-VN" }
+];
+
+const TIER_2_LANGUAGES = [
+  "Afrikaans", "Albanian", "Amharic", "Armenian", "Assamese", "Azerbaijani", "Basque", "Belarusian", "Bosnian", "Bulgarian", 
+  "Burmese", "Catalan", "Cebuano", "Chinese", "Croatian", "Czech", "Danish", "Estonian", "Faroese", "Filipino", 
+  "Finnish", "Galician", "Georgian", "Greek", "Gujarati", "Hausa", "Hebrew", "Hungarian", "Icelandic", "Irish", 
+  "Kannada", "Kazakh", "Khmer", "Kinyarwanda", "Kurdish", "Kyrgyz", "Lao", "Latvian", "Lithuanian", "Macedonian", 
+  "Malay", "Malayalam", "Maltese", "Maori", "Mongolian", "Nepali", "Norwegian", "Odia", "Oromo", "Pashto", 
+  "Persian", "Punjabi", "Quechua", "Romansh", "Serbian", "Sindhi", "Sinhala", "Slovak", "Slovenian", "Somali", 
+  "Sotho", "Swahili", "Swedish", "Tajik", "Tswana", "Turkmen", "Urdu", "Uzbek", "Welsh", "Wolof", "Yoruba", "Zulu"
+];
+
+const ACCENTS: Record<string, string[]> = {
+  "English (US)": ["Gen. American", "New York", "Southern", "Californian", "British RP", "Cockney", "Scottish", "Irish", "Australian", "New Zealand", "Indian", "South African", "Canadian", "Jamaican"],
+  "Spanish (US)": ["Mexican", "Castilian (Spain)", "Argentine", "Colombian", "Chilean", "Cuban", "Puerto Rican"],
+  "French (France)": ["Parisian", "Québécois", "Belgian", "Swiss", "West African"],
+  "Portuguese (Brazil)": ["Brazilian (São Paulo)", "European (Lisbon)"],
+  "Arabic (Egypt)": ["Egyptian", "Gulf/Saudi", "Levantine", "Moroccan", "Iraqi"],
+  "German": ["Standard German", "Austrian", "Swiss German", "Bavarian"],
+  "Italian": ["Standard (Tuscan)", "Roman", "Milanese", "Sicilian"],
+  "Hindi": ["Standard Delhi", "Mumbai", "Bollywood-style"],
+  "Chinese": ["Mandarin (Beijing)", "Taiwanese Mandarin"]
+};
+
+const VOICE_OPTIONS = [
+  { name: "Kore", style: "Firm", gender: "female" },
+  { name: "Zephyr", style: "Bright", gender: "neutral" },
+  { name: "Charon", style: "Informative", gender: "male" },
+  { name: "Puck", style: "Upbeat", gender: "male" },
+  { name: "Fenrir", style: "Excitable", gender: "male" },
+  { name: "Leda", style: "Youthful", gender: "female" },
+  { name: "Aoede", style: "Breezy", gender: "female" },
+  { name: "Orus", style: "Firm", gender: "male" },
+  { name: "Callirrhoe", style: "Easy-going", gender: "female" },
+  { name: "Erinome", style: "Clear", gender: "female" },
+  { name: "Enceladus", style: "Breathy", gender: "female" },
+  { name: "Iapetus", style: "Clear", gender: "male" },
+  { name: "Laomedeia", style: "Upbeat", gender: "female" },
+  { name: "Algieba", style: "Smooth", gender: "female" },
+  { name: "Despina", style: "Smooth", gender: "female" },
+  { name: "Schedar", style: "Even", gender: "female" },
+  { name: "Algenib", style: "Gravelly", gender: "male" },
+  { name: "Rasalgethi", style: "Informative", gender: "male" },
+  { name: "Achird", style: "Friendly", gender: "female" },
+  { name: "Achernar", style: "Soft", gender: "female" },
+  { name: "Alnilam", style: "Firm", gender: "male" },
+  { name: "Sadachbia", style: "Lively", gender: "female" },
+  { name: "Gacrux", style: "Mature", gender: "female" },
+  { name: "Pulcherrima", style: "Forward", gender: "female" },
+  { name: "Umbriel", style: "Easy-going", gender: "male" },
+  { name: "Zubenelgenubi", style: "Casual", gender: "male" },
+  { name: "Vindemiatrix", style: "Gentle", gender: "female" },
+  { name: "Autonoe", style: "Bright", gender: "female" },
+  { name: "Sadaltager", style: "Knowledgeable", gender: "male" },
+  { name: "Sulafat", style: "Warm", gender: "female" }
+];
 
 // Local LogItem removed - handled by LogContext and standalone Logs page
 
@@ -75,13 +158,31 @@ export default function GeminiLive() {
   const [permissionDeniedType, setPermissionDeniedType] = useState<'mic' | 'camera' | 'both' | null>(null);
 
   // Settings
-  const [selectedMic, setSelectedMic] = useState<string>("default");
-  const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
-  const [selectedAccent, setSelectedAccent] = useState<string>("Neutral");
-  const [systemPrompt] = useState<string>(
-    "You are a helpful assistant and tech expert. When a session starts, please warmly welcome the user and offer your assistance. You help users with Windows issues, IT systems, networks, and general tech support. You are gentle, proactive, and authoritative yet kind."
-  );
+  const [selectedMic, setSelectedMic] = useState<string>(() => localStorage.getItem('selectedMic') || "default");
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => localStorage.getItem('selectedVoice') || "Kore");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => localStorage.getItem('selectedLanguage') || "English (US)");
+  const [selectedAccent, setSelectedAccent] = useState<string>(() => localStorage.getItem('selectedAccent') || "Standard");
+  
+  // Agent identity
+  const [agentName, setAgentName] = useState(() => localStorage.getItem('agentName') || 'Humphi');
+  const [agentRole, setAgentRole] = useState(() => localStorage.getItem('agentRole') || 'Tech Expert');
+  const [agentDescription, setAgentDescription] = useState(() => localStorage.getItem('agentDescription') || ROLE_PRESETS["Tech Expert"]);
+  const [welcomeMessage, setWelcomeMessage] = useState(() => localStorage.getItem('welcomeMsg') || '');
+  
+  const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'agent' | 'voice' | 'hardware'>('agent');
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dropTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persistence Effects
+  useEffect(() => { localStorage.setItem('selectedMic', selectedMic); }, [selectedMic]);
+  useEffect(() => { localStorage.setItem('selectedVoice', selectedVoice); }, [selectedVoice]);
+  useEffect(() => { localStorage.setItem('selectedLanguage', selectedLanguage); }, [selectedLanguage]);
+  useEffect(() => { localStorage.setItem('selectedAccent', selectedAccent); }, [selectedAccent]);
+  useEffect(() => { localStorage.setItem('agentName', agentName); }, [agentName]);
+  useEffect(() => { localStorage.setItem('agentRole', agentRole); }, [agentRole]);
+  useEffect(() => { localStorage.setItem('agentDescription', agentDescription); }, [agentDescription]);
+  useEffect(() => { localStorage.setItem('welcomeMsg', welcomeMessage); }, [welcomeMessage]);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [screenQuality, setScreenQuality] = useState(0.6);
   const [screenMaxDimension, setScreenMaxDimension] = useState(720);
@@ -110,9 +211,49 @@ export default function GeminiLive() {
     getDevices();
     return () => {
       stopSession();
-      stopCameraPreview(); // Clean up preview stream on unmount
+      stopCameraPreview();
+      clearTimers();
     };
   }, []);
+
+  const clearTimers = () => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
+  };
+
+  const resetTimers = () => {
+    clearTimers();
+    if (!isConnected) return;
+
+    // 15s Idle check-in
+    idleTimerRef.current = setTimeout(() => {
+      if (sessionRef.current && isConnected) {
+        sessionRef.current.sendRealtimeInput([{ text: "Are you still there? I'm here if you need anything." }]);
+        addLog('info', 'Sent idle check-in');
+      }
+    }, 15000);
+
+    // 60s Drop disconnect
+    dropTimerRef.current = setTimeout(() => {
+      if (isConnected) {
+        addLog('warn', 'Session timed out due to 60s inactivity');
+        stopSession();
+      }
+    }, 60000);
+  };
+
+  const buildSystemPrompt = () => {
+    const langPrompt = selectedLanguage.includes('(') ? selectedLanguage : `${selectedLanguage} language`;
+    const accentPrompt = selectedAccent !== 'Standard' ? ` Speak with a ${selectedAccent} accent.` : "";
+    
+    return `Your name is ${agentName}. Your role is: ${agentRole}. 
+Description: ${agentDescription}
+
+Identity Rules:
+- You must speak in ${langPrompt}.${accentPrompt}
+- Maintain the persona described above at all times.
+- Be proactive and helpful.`;
+  };
 
   // Stop camera preview whenever the hardware menu closes
   useEffect(() => {
@@ -224,21 +365,21 @@ export default function GeminiLive() {
       
       audioPlayerRef.current = new AudioPlayer();
 
+      const langCode = TIER_1_LANGUAGES.find(l => l.name === selectedLanguage)?.code || 'en-US';
+
       const session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
+            languageCode: langCode,
             voiceConfig: {
               prebuiltVoiceConfig: {
                 voiceName: selectedVoice as any
               }
             }
           },
-          systemInstruction: `${systemPrompt} 
-          IMPORTANT: You are a ${VOICE_GENDERS[selectedVoice] || 'neutral'} persona. 
-          In languages like Hindi, you MUST use the ${VOICE_GENDERS[selectedVoice] || 'neutral'} gender for yourself (e.g., use feminine verb endings if you are feminine).
-          You MUST speak to me in ${selectedLanguage} with a ${selectedAccent} accent.`
+          systemInstruction: buildSystemPrompt()
         },
         callbacks: {
           onopen: () => {
@@ -250,10 +391,12 @@ export default function GeminiLive() {
             setIsMicOn(true);
             startAudioCapture();
 
-            // Trigger a welcome message from Gemini so user hears it immediately
+            // Trigger a welcome message
+            resetTimers();
             setTimeout(() => {
                 if (sessionRef.current && connectedRef.current) {
-                    sessionRef.current.sendRealtimeInput([{ text: "Hello! Please introduce yourself briefly and welcome the user." }]);
+                    const msg = welcomeMessage || `Hello! I am ${agentName}, your ${agentRole}. How can I help you today?`;
+                    sessionRef.current.sendRealtimeInput([{ text: msg }]);
                 }
             }, 1000);
           },
@@ -361,6 +504,7 @@ export default function GeminiLive() {
       
       for (const p of audioParts) {
         if (p.inlineData && audioPlayerRef.current) {
+          resetTimers(); // Reset timers on any model output
           await audioPlayerRef.current.playChunk(p.inlineData.data);
         }
       }
@@ -384,6 +528,7 @@ export default function GeminiLive() {
     try {
       audioRecorderRef.current = new AudioRecorder((base64Data) => {
         if (sessionRef.current && connectedRef.current) {
+          resetTimers(); // Reset on user voice input
           sessionRef.current.sendRealtimeInput({
             audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
           });
@@ -603,6 +748,7 @@ export default function GeminiLive() {
   const handleSendMessage = () => {
     if (!inputText.trim() || !sessionRef.current) return;
     
+    resetTimers(); // Reset on user text input
     const text = inputText.trim();
     setMessages(prev => [...prev, {
       id: Math.random().toString(36).slice(2),
@@ -924,168 +1070,300 @@ export default function GeminiLive() {
           {/* ── Hardware Diagnostics Hub (Dropdown) ─────────────────── */}
           <AnimatePresence>
             {isHardwareMenuOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute top-full right-0 mt-4 w-[280px] md:w-[340px] bg-[#1A2232] rounded-[32px] border-4 border-black/40 shadow-2xl z-50 overflow-hidden"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="absolute top-full right-0 mt-3 w-[340px] md:w-[400px] bg-[#1A2232]/95 backdrop-blur-2xl rounded-[32px] md:rounded-[40px] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] z-50 overflow-hidden"
               >
-                <div className="p-6 space-y-6">
-                  {/* Mic Diagnostics */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-[#22C9E8]">
-                        <Mic size={14} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Input Device</span>
+                {/* Custom Tab Header */}
+                <div className="flex p-2 bg-black/20 gap-1">
+                  {[
+                    { id: 'agent', label: 'Identity', icon: User },
+                    { id: 'voice', label: 'Voice', icon: Volume2 },
+                    { id: 'hardware', label: 'Hardware', icon: Settings },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveSettingsTab(tab.id as any)}
+                      className={cn(
+                        "flex-1 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all",
+                        activeSettingsTab === tab.id 
+                          ? "bg-[#22C9E8] text-[#0D1117] shadow-lg shadow-[#22C9E8]/20" 
+                          : "text-white/40 hover:text-white hover:bg-white/5"
+                      )}
+                    >
+                      <tab.icon size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-6 md:p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                  {/* --- IDENTITY TAB --- */}
+                  {activeSettingsTab === 'agent' && (
+                    <motion.div 
+                      key="agent-tab"
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      className="space-y-5"
+                    >
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Agent Name</label>
+                        <input 
+                          type="text" 
+                          value={agentName}
+                          onChange={(e) => setAgentName(e.target.value)}
+                          placeholder="What is your assistant's name?"
+                          className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-[#22C9E8]/30"
+                        />
                       </div>
-                      {/* Live ping when mic is on */}
-                      {isMicOn && (
-                        <div className="flex gap-0.5 h-3 items-end">
-                            {[...Array(4)].map((_, i) => (
-                                <motion.div 
-                                    key={i}
-                                    animate={{ height: [4, 12, 4] }}
-                                    transition={{ repeat: Infinity, duration: 1, delay: i * 0.1 }}
-                                    className="w-1 bg-[#22C9E8] rounded-full" 
-                                />
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Core Persona / Role</label>
+                        <div className="relative group">
+                          <select 
+                            value={agentRole}
+                            onChange={(e) => {
+                              setAgentRole(e.target.value);
+                              if (ROLE_PRESETS[e.target.value]) {
+                                setAgentDescription(ROLE_PRESETS[e.target.value]);
+                              }
+                            }}
+                            className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30"
+                          >
+                            {Object.keys(ROLE_PRESETS).map(role => (
+                              <option key={role} value={role} className="bg-[#1A2232]">{role}</option>
                             ))}
+                            <option value="Custom" className="bg-[#1A2232]">Custom...</option>
+                          </select>
+                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none group-hover:text-white/40 transition-colors" />
                         </div>
-                      )}
-                    </div>
-                    
-                    <select 
-                      value={selectedMic} 
-                      onChange={(e) => setSelectedMic(e.target.value)}
-                      className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#22C9E8]/30 cursor-pointer"
-                    >
-                      {devices.length === 0 ? (
-                        <option value="">No microphone detected</option>
-                      ) : (
-                        devices.map(d => (
-                          <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
-                        ))
-                      )}
-                    </select>
+                      </div>
 
-                    {/* Mic Power Meter */}
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between text-[8px] uppercase font-black tracking-widest text-white/20">
-                            <span>Mic Power</span>
-                            <span>{isTestingMic ? `${Math.round(micVolume * 100)}%` : 'Press test to activate'}</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-end ml-1">
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Description & Rules</label>
+                          <span className="text-[9px] text-[#22C9E8]/40 font-bold">Auto-saves to prompt</span>
                         </div>
-                        <div className="relative h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                            <motion.div 
-                              animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
-                              transition={{ duration: 0.1 }}
-                              className="absolute h-full bg-gradient-to-r from-blue-500 to-[#22C9E8] shadow-[0_0_12px_rgba(34,201,232,0.4)]"
-                            />
+                        <textarea 
+                          value={agentDescription}
+                          onChange={(e) => setAgentDescription(e.target.value)}
+                          placeholder="How should the agent behave? What are its rules?"
+                          rows={4}
+                          className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-medium text-white/70 leading-relaxed resize-none focus:outline-none focus:border-[#22C9E8]/30"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Welcome Message</label>
+                        <input 
+                          type="text" 
+                          value={welcomeMessage}
+                          onChange={(e) => setWelcomeMessage(e.target.value)}
+                          placeholder="Spoken when session starts..."
+                          className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-[#22C9E8]/30"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* --- VOICE & LANGUAGE TAB --- */}
+                  {activeSettingsTab === 'voice' && (
+                    <motion.div 
+                      key="voice-tab"
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      className="space-y-5"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Language</label>
+                          <div className="relative group">
+                            <select 
+                              value={selectedLanguage}
+                              onChange={(e) => {
+                                setSelectedLanguage(e.target.value);
+                                if (ACCENTS[e.target.value]) {
+                                  setSelectedAccent(ACCENTS[e.target.value][0]);
+                                } else {
+                                  setSelectedAccent("Standard");
+                                }
+                              }}
+                              className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-wider text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30"
+                            >
+                              <optgroup label="Native Support (V3.1)" className="text-[#22C9E8]">
+                                {TIER_1_LANGUAGES.map(l => (
+                                  <option key={l.name} value={l.name} className="bg-[#1A2232]">{l.name}</option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="Experimental / Logic-only" className="text-white/40">
+                                {TIER_2_LANGUAGES.map(l => (
+                                  <option key={l} value={l} className="bg-[#1A2232]">{l}</option>
+                                ))}
+                              </optgroup>
+                            </select>
+                            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none group-hover:text-white/40" />
+                          </div>
                         </div>
-                    </div>
 
-                    {/* Test Mic Button */}
-                    <button
-                      onClick={toggleMicTest}
-                      className={cn(
-                        "w-full py-3 rounded-2xl flex items-center justify-center gap-2.5 transition-all group active:scale-[0.98] border-2",
-                        isTestingMic
-                          ? "bg-[#22C9E8]/10 border-[#22C9E8]/30 text-[#22C9E8]"
-                          : "bg-white/5 hover:bg-white/10 border-white/5 text-white/50 hover:text-white"
-                      )}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Accent Style</label>
+                          <div className="relative group">
+                            <select 
+                              value={selectedAccent}
+                              onChange={(e) => setSelectedAccent(e.target.value)}
+                              className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-wider text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30"
+                            >
+                              <option value="Standard" className="bg-[#1A2232]">Standard</option>
+                              {ACCENTS[selectedLanguage]?.map(acc => (
+                                <option key={acc} value={acc} className="bg-[#1A2232]">{acc}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Gemini V3 Voice Profile</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {VOICE_OPTIONS.map(v => (
+                            <button
+                              key={v.name}
+                              onClick={() => setSelectedVoice(v.name)}
+                              className={cn(
+                                "p-4 rounded-2xl border-2 flex flex-col items-start gap-1 transition-all group",
+                                selectedVoice === v.name 
+                                  ? "bg-[#22C9E8]/10 border-[#22C9E8] text-white shadow-lg shadow-[#22C9E8]/10" 
+                                  : "bg-black/20 border-white/5 text-white/40 hover:border-white/20 hover:text-white"
+                              )}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-[11px] font-black uppercase tracking-wider">{v.name}</span>
+                                {v.gender === 'female' ? <User size={10} className="text-pink-400/60" /> : <User size={10} className="text-blue-400/60" />}
+                              </div>
+                              <span className="text-[8px] font-bold opacity-60">{v.style}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* --- HARDWARE TAB --- */}
+                  {activeSettingsTab === 'hardware' && (
+                    <motion.div 
+                      key="hardware-tab"
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      className="space-y-6"
                     >
-                      <Mic size={13} className={isTestingMic ? "animate-pulse" : ""} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        {isTestingMic ? 'Stop Mic Test' : 'Test Microphone'}
-                      </span>
-                      {isTestingMic && (
-                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                      )}
-                    </button>
-                  </div>
+                      {/* Audio Input Selection */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 ml-1">
+                          <Mic size={14} className="text-[#22C9E8]" />
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Microphone Input</label>
+                        </div>
+                        
+                        <div className="relative group">
+                          <select 
+                            value={selectedMic} 
+                            onChange={(e) => setSelectedMic(e.target.value)}
+                            className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30"
+                          >
+                            {devices.length === 0 ? (
+                              <option value="">No microphone detected</option>
+                            ) : (
+                              devices.map(d => (
+                                <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                              ))
+                            )}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none group-hover:text-white/40" />
+                        </div>
 
-                  {/* Camera Diagnostics */}
-                  <div className="space-y-3 pt-5 border-t border-white/5">
-                    <div className="flex items-center gap-2 text-[#FF6619]">
-                      <Video size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Visual Device</span>
-                    </div>
+                        {/* Mic Power Meter */}
+                        <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-3">
+                            <div className="flex justify-between items-end">
+                                <div className="space-y-1">
+                                  <span className="block text-[8px] uppercase font-black tracking-widest text-[#22C9E8]">Live Level</span>
+                                  <span className="block text-[10px] font-bold text-white/80">{isTestingMic ? `${Math.round(micVolume * 100)}%` : 'Sensor Inactive'}</span>
+                                </div>
+                                <button
+                                  onClick={toggleMicTest}
+                                  className={cn(
+                                    "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all",
+                                    isTestingMic ? "bg-red-500/20 text-red-500" : "bg-[#22C9E8]/10 text-[#22C9E8] hover:bg-[#22C9E8]/20"
+                                  )}
+                                >
+                                  {isTestingMic ? 'Stop Test' : 'Start Test'}
+                                </button>
+                            </div>
+                            <div className="relative h-1.5 bg-black/60 rounded-full overflow-hidden">
+                                <motion.div 
+                                  animate={{ width: `${Math.min(100, micVolume * 100)}%` }}
+                                  transition={{ duration: 0.1 }}
+                                  className="absolute h-full bg-[#22C9E8] shadow-[0_0_12px_rgba(34,201,232,0.4)]"
+                                />
+                            </div>
+                        </div>
+                      </div>
 
-                    <select 
-                      value={selectedCamera} 
-                      onChange={(e) => {
-                        const newId = e.target.value;
-                        setSelectedCamera(newId);
-                        if (isCameraOn) startCameraCapture(newId);
-                        if (isPreviewingCamera) startCameraPreview(newId);
-                      }}
-                      className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-[11px] font-bold text-white/80 focus:outline-none focus:border-[#FF6619]/30 cursor-pointer"
-                    >
-                      {videoDevices.length === 0 ? (
-                        <option value="">No camera detected</option>
-                      ) : (
-                        videoDevices.map(d => (
-                          <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
-                        ))
-                      )}
-                    </select>
+                      {/* Camera Selection */}
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2 ml-1">
+                          <Video size={14} className="text-[#FF6619]" />
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Camera Source</label>
+                        </div>
 
-                    {/* Camera Preview Thumbnail */}
-                    <div className="aspect-video bg-black/60 rounded-2xl border-2 border-white/5 overflow-hidden relative flex items-center justify-center">
-                       {!isPreviewingCamera ? (
-                         <div className="flex flex-col items-center gap-2 text-center">
-                           <Video size={20} className="text-white/10" />
-                           <span className="text-[8px] uppercase font-black tracking-widest text-white/10">Camera Idle</span>
-                         </div>
-                       ) : null}
-                       {/* Always-mounted video element — hidden when not previewing */}
-                       <video
-                         ref={previewVideoRef}
-                         autoPlay
-                         playsInline
-                         muted
-                         className={cn(
-                           "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-                           isPreviewingCamera ? "opacity-100" : "opacity-0"
-                         )}
-                       />
-                       {/* Live badge */}
-                       {isPreviewingCamera && (
-                         <div className="absolute top-2.5 right-2.5 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 flex items-center gap-1.5 z-10">
-                           <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                           <span className="text-[7px] font-black uppercase tracking-widest text-white/70">Live Preview</span>
-                         </div>
-                       )}
-                    </div>
+                        <div className="relative group">
+                          <select 
+                            value={selectedCamera} 
+                            onChange={(e) => setSelectedCamera(e.target.value)}
+                            className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-3 px-4 text-xs font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30"
+                          >
+                            {videoDevices.length === 0 ? (
+                              <option value="">No cameras detected</option>
+                            ) : (
+                              videoDevices.map(d => (
+                                <option key={d.deviceId} value={d.deviceId} className="bg-[#1A2232]">{d.label}</option>
+                              ))
+                            )}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none group-hover:text-white/40" />
+                        </div>
 
-                    {/* Test Camera Button */}
-                    <button
-                      onClick={() => isPreviewingCamera ? stopCameraPreview() : startCameraPreview()}
-                      className={cn(
-                        "w-full py-3 rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] border-2",
-                        isPreviewingCamera
-                          ? "bg-[#FF6619]/10 border-[#FF6619]/30 text-[#FF6619]"
-                          : "bg-white/5 hover:bg-white/10 border-white/5 text-white/50 hover:text-white"
-                      )}
-                    >
-                      <Video size={13} className={isPreviewingCamera ? "animate-pulse" : ""} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        {isPreviewingCamera ? 'Stop Preview' : 'Test Camera'}
-                      </span>
-                      {isPreviewingCamera && (
-                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                      )}
-                    </button>
-                  </div>
+                        {/* Camera Preview */}
+                        <div className="relative aspect-video bg-black/60 rounded-2xl border-2 border-white/5 overflow-hidden group/cam">
+                           {isPreviewingCamera ? (
+                             <video ref={previewVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                           ) : (
+                             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                               <Video size={24} className="text-white/5 mb-2" />
+                               <span className="text-[8px] font-black uppercase tracking-widest text-white/10">Preview Off</span>
+                             </div>
+                           )}
+                           
+                           <button
+                             onClick={() => isPreviewingCamera ? stopCameraPreview() : startCameraPreview()}
+                             className="absolute bottom-3 left-3 right-3 py-2.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-black/80 transition-all opacity-0 group-hover/cam:opacity-100"
+                           >
+                             {isPreviewingCamera ? 'Close Preview' : 'Enable Preview'}
+                           </button>
+                        </div>
+                      </div>
 
-                  {/* Speaker Diagnostics */}
-                  <div className="pt-5 border-t border-white/5">
-                    <button 
-                      onClick={testSpeakers}
-                      className="w-full py-4 bg-white/5 hover:bg-white/10 border-2 border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all group active:scale-[0.98]"
-                    >
-                      <Volume2 size={16} className="text-green-400 group-hover:scale-110 transition-transform" />
-                      <span className="text-[11px] font-black uppercase tracking-widest text-white/60 group-hover:text-white">Play Test Chime</span>
-                    </button>
-                  </div>
+                      {/* Speaker Diagnostics */}
+                      <button 
+                        onClick={testSpeakers}
+                        className="w-full py-4 bg-white/5 hover:bg-white/10 border-2 border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all group"
+                      >
+                        <Volume2 size={16} className="text-green-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white">Play Audio Test Chime</span>
+                      </button>
+                    </motion.div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -1164,10 +1442,10 @@ export default function GeminiLive() {
                   <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <Terminal size={32} className="text-[#22C9E8]/40 md:w-12 md:h-12" />
                 </div>
-                <h3 className="text-xl md:text-3xl font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                <h3 className="text-xl md:text-3xl font-bold text-[#FF6619] mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
                   Start Your <span className="text-[#22C9E8]">Live Experience</span>
                 </h3>
-                <p className="text-white/40 max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
+                <p className="text-white max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
                   Connect to Humphi Live to begin a real-time session with your AI assistant using voice and high-fidelity video context.
                 </p>
                 <div className="flex items-center gap-3 p-1.5 bg-[#1A2232] rounded-full border border-black/40">
