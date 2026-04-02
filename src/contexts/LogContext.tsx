@@ -10,7 +10,18 @@ interface LogContextType {
 const LogContext = createContext<LogContextType | undefined>(undefined);
 
 export const LogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('humphi_session_logs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((l: any) => ({ ...l, timestamp: new Date(l.timestamp) }));
+      }
+    } catch (e) {
+      console.error('Failed to load logs from localStorage', e);
+    }
+    return [];
+  });
 
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: any) => {
     setLogs((prev) => {
@@ -22,8 +33,9 @@ export const LogProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         details,
       };
       // Keep only last 1000 logs to prevent memory issues
-      const updated = [...prev, newLog];
-      return updated.length > 1000 ? updated.slice(-1000) : updated;
+      const updated = [...prev, newLog].slice(-1000);
+      localStorage.setItem('humphi_session_logs', JSON.stringify(updated));
+      return updated;
     });
   }, []);
 

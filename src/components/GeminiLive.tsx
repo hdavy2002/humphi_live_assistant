@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
+import { inngest } from '../lib/inngest';
 
 const MODEL_NAME = "models/gemini-2.0-flash-exp";
 
@@ -109,11 +110,18 @@ const VOICE_OPTIONS = [
   { name: "Sulafat", style: "Warm", gender: "female" }
 ];
 
-// Local LogItem removed - handled by LogContext and standalone Logs page
+const WELCOME_MESSAGES: Record<string, string> = {
+  "Tech Expert": "Hello! I am your Technical Expert. Looking to debug something, discuss architecture, or explore new stacks?",
+  "Product Manager": "Hi there! I am your Product Manager. Ready to refine requirements, prioritize features, and talk about the roadmap?",
+  "Business Analyst": "Greetings. I'm your Business Analyst. Let's look at the data, requirements, and business value together.",
+  "Creative Designer": "Hi! I'm your Creative Designer. Let's talk about user experience, visual consistency, and creative solutions.",
+  "Project Coordinator": "Hello! I am your Project Coordinator. Let's get organized, check on deadlines, and clear any blockers."
+};
 
 export default function GeminiLive() {
   const { user } = useUser();
   const { signOut, getToken } = useAuth();
+  const { logs, addLog, clearLogs } = useLogs();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -132,8 +140,6 @@ export default function GeminiLive() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      // The new API endpoint returns the profile object directly 
-      // (no nested 'profile' wrapper, and balance is directly under walletBalance)
       if (data && data.id) {
           setProfile({
               ...data,
@@ -145,25 +151,25 @@ export default function GeminiLive() {
     }
   };
 
+  // -- State: Lifecycle & Status --
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const { logs, addLog, clearLogs } = useLogs();
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
   const [permissionState, setPermissionState] = useState<'idle' | 'denied' | 'granted'>('idle');
   const [permissionDeniedType, setPermissionDeniedType] = useState<'mic' | 'camera' | 'both' | null>(null);
 
-  // Settings
+  // -- State: Settings --
   const [selectedMic, setSelectedMic] = useState<string>(() => localStorage.getItem('selectedMic') || "default");
   const [selectedVoice, setSelectedVoice] = useState<string>(() => localStorage.getItem('selectedVoice') || "Kore");
   const [selectedLanguage, setSelectedLanguage] = useState<string>(() => localStorage.getItem('selectedLanguage') || "English (US)");
   const [selectedAccent, setSelectedAccent] = useState<string>(() => localStorage.getItem('selectedAccent') || "Standard");
   
-  // Agent identity
+  // -- State: Agent identity --
   const [agentName, setAgentName] = useState(() => localStorage.getItem('agentName') || 'Humphi');
   const [agentRole, setAgentRole] = useState(() => localStorage.getItem('agentRole') || 'Tech Expert');
   const [agentDescription, setAgentDescription] = useState(() => localStorage.getItem('agentDescription') || ROLE_PRESETS["Tech Expert"]);
@@ -174,10 +180,29 @@ export default function GeminiLive() {
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const dropTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Persistence Effects
+  const prevRoleRef = useRef(agentRole);
+
+  // Auto-sync welcome message on role change
+  useEffect(() => {
+    // If user hasn't customized the welcome message (it matches the default for the PREVIOUS role),
+    // then update it to the default for the NEW role.
+    const prevDefault = WELCOME_MESSAGES[prevRoleRef.current];
+    if (!welcomeMessage || welcomeMessage === prevDefault) {
+        const nextMsg = WELCOME_MESSAGES[agentRole];
+        if (nextMsg) setWelcomeMessage(nextMsg);
+    }
+    prevRoleRef.current = agentRole;
+  }, [agentRole]);
+
+  // -- Lifecycle: Persistence Effects --
   useEffect(() => { localStorage.setItem('selectedMic', selectedMic); }, [selectedMic]);
   useEffect(() => { localStorage.setItem('selectedVoice', selectedVoice); }, [selectedVoice]);
   useEffect(() => { localStorage.setItem('selectedLanguage', selectedLanguage); }, [selectedLanguage]);
+  useEffect(() => { localStorage.setItem('selectedAccent', selectedAccent); }, [selectedAccent]);
+  useEffect(() => { localStorage.setItem('agentName', agentName); }, [agentName]);
+  useEffect(() => { localStorage.setItem('agentRole', agentRole); }, [agentRole]);
+  useEffect(() => { localStorage.setItem('agentDescription', agentDescription); }, [agentDescription]);
+  useEffect(() => { localStorage.setItem('welcomeMsg', welcomeMessage); }, [welcomeMessage]);
   useEffect(() => { localStorage.setItem('selectedAccent', selectedAccent); }, [selectedAccent]);
   useEffect(() => { localStorage.setItem('agentName', agentName); }, [agentName]);
   useEffect(() => { localStorage.setItem('agentRole', agentRole); }, [agentRole]);
@@ -270,11 +295,11 @@ Identity Rules:
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // Real-time balance polling every 15 seconds while connected
+  // Real-time balance polling every 60 seconds while connected
   useEffect(() => {
     let interval: any;
     if (isConnected) {
-      interval = setInterval(fetchProfile, 15000);
+      interval = setInterval(fetchProfile, 60000);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -425,34 +450,35 @@ Identity Rules:
 
   const saveSessionAndBill = async () => {
       try {
-          const token = await getToken();
+          if (!user?.id) return;
           const transcript = messages.map(m => `[${m.role}] ${m.text}`).join('\n');
           
-          addLog('info', 'Saving session and processing billing...', { tokens: tokenUsage });
+          addLog('info', 'Dispatching session/ended event to Inngest for background billing...', { tokens: tokenUsage });
           
-          const res = await fetch('/api/session/save', {
-              method: 'POST',
-              headers: { 
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                  transcript,
-                  tokens: tokenUsage
-              })
+          // Using Inngest for asynchronous, background billing and session memory 
+          // to prevent UI hangs or data loss on component unmount
+          await inngest.send({
+            name: "session/ended",
+            data: {
+              userId: user.id,
+              transcript,
+              tokenUsage,
+              agentRole,
+              agentName,
+              timestamp: new Date().toISOString()
+            }
           });
-          
-          if (res.ok) {
-              addLog('info', 'Session successfully saved to memory and billed.');
-              fetchProfile(); // Refresh balance one last time
-          }
+
+          addLog('info', 'Inngest event dispatched successfully.');
       } catch (err) {
-          addLog('error', 'Failed to save session/process billing', err);
+          addLog('error', 'Failed to dispatch session/ended event', err);
       }
   };
 
   const stopSession = () => {
     if (!connectedRef.current && !isConnecting) return;
+    
+    addLog('info', 'Ending session. Cleaning up resources...');
     
     setIsConnected(false);
     connectedRef.current = false;
@@ -461,11 +487,19 @@ Identity Rules:
     setIsScreenSharing(false);
     setIsCameraOn(false);
     
+    // Clear all pending timers (idle check, drop disconnect)
+    clearTimers();
+
     if (sessionRef.current) {
-      sessionRef.current.close();
+      try {
+          sessionRef.current.close();
+      } catch (err) {
+          console.error('Error closing session:', err);
+      }
       sessionRef.current = null;
     }
     
+    // Stop all media streams and capture loops
     stopAudioCapture();
     stopScreenCapture();
     stopCameraCapture();
@@ -475,12 +509,12 @@ Identity Rules:
       audioPlayerRef.current = null;
     }
 
-    // Trigger save and billing at the end
+    // Capture and bill session asynchronously
     if (messages.length > 0) {
         saveSessionAndBill();
     }
 
-    addLog('info', 'Session ended');
+    addLog('system', 'Session ended and resources cleared.');
   };
 
   const handleServerMessage = async (message: LiveServerMessage) => {

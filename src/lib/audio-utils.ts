@@ -100,32 +100,43 @@ export class AudioPlayer {
   async playChunk(base64Data: string) {
     if (!this.audioContext || this.muted) return;
 
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    // Force resume if context is not running (handles browser autoplay and suspension)
+    if (this.audioContext.state !== 'running') {
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+        return;
+      }
     }
 
-    const binary = atob(base64Data);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
+    try {
+      const binary = atob(base64Data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const pcm16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768;
+      }
+
+      const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
+      audioBuffer.getChannelData(0).set(float32);
+
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.audioContext.destination);
+
+      // Buffer management: ensure smooth playback by scheduling chunks
+      const startTime = Math.max(this.audioContext.currentTime, this.nextStartTime);
+      source.start(startTime);
+      this.nextStartTime = startTime + audioBuffer.duration;
+    } catch (e) {
+      console.error('Error during audio chunk playback:', e);
     }
-
-    const pcm16 = new Int16Array(bytes.buffer);
-    const float32 = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i++) {
-      float32[i] = pcm16[i] / 32768;
-    }
-
-    const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
-    audioBuffer.getChannelData(0).set(float32);
-
-    const source = this.audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(this.audioContext.destination);
-
-    const startTime = Math.max(this.audioContext.currentTime, this.nextStartTime);
-    source.start(startTime);
-    this.nextStartTime = startTime + audioBuffer.duration;
   }
 
   setMuted(muted: boolean) {
