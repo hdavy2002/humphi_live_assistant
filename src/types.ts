@@ -28,8 +28,8 @@ export interface Transaction {
   id: string;
   user_id: string;
   amount: number;
-  type: 'topup' | 'usage';
-  status: 'pending' | 'completed' | 'failed';
+  type: 'topup' | 'usage' | 'TOP_UP' | 'USAGE';
+  status: 'pending' | 'completed' | 'failed' | 'PENDING' | 'COMPLETED' | 'FAILED';
   created_at: string;
   stripe_session_id?: string;
 }

@@ -1,99 +1,364 @@
 import React, { useState, useEffect } from 'react';
 import { useUser, UserProfile } from '@clerk/clerk-react';
-import { User, Mail, Lock, ArrowLeft, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Shield, ChevronRight, CheckCircle2, Loader2, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
   const { user, isLoaded } = useUser();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showClerkProfile, setShowClerkProfile] = useState(false);
   const navigate = useNavigate();
 
+  /* ── Auth state — UNCHANGED ── */
   useEffect(() => {
     if (user) {
       setEmail(user.primaryEmailAddress?.emailAddress || '');
     }
   }, [user]);
 
-  if (!isLoaded) return <div className="h-screen flex items-center justify-center text-white/10 italic">Loading profile...</div>;
-  if (!user) return <div className="h-screen flex items-center justify-center text-white/10 italic">Please sign in to view your profile.</div>;
+  if (!isLoaded)
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
+        <Loader2 size={24} className="animate-spin" style={{ color: '#bdc8cc' }} />
+        <p style={{ color: '#6e797c', fontSize: '0.875rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+          Loading profile...
+        </p>
+      </div>
+    );
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  if (!user)
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#6e797c',
+          fontFamily: "'Comfortaa', system-ui, sans-serif",
+        }}
+      >
+        Please sign in to view your profile.
+      </div>
+    );
+
+  /* ── Trigger update — UNCHANGED ── */
+  const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     setShowClerkProfile(true);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden max-w-[450px] mx-auto border-x border-white/5 shadow-2xl">
-      <header className="shrink-0 p-4 border-b border-white/10 bg-[#0d0d0d] flex items-center gap-4">
-        <button onClick={() => navigate('/')} className="p-2 hover:bg-white/5 rounded-xl text-white/40 transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-sm font-bold uppercase tracking-widest">Profile</h1>
-      </header>
+    <div style={{ padding: '1.5rem 2rem', maxWidth: 700, margin: '0 auto' }}>
+      {/* ── Page Header ─────────────────────────────── */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h1
+          style={{
+            fontFamily: "'Comfortaa', system-ui, sans-serif",
+            fontWeight: 700,
+            fontSize: '1.5rem',
+            color: '#1d1c15',
+            marginBottom: '0.25rem',
+          }}
+        >
+          Settings
+        </h1>
+        <p style={{ color: '#3e494c', fontSize: '0.875rem' }}>
+          Manage your account and preferences.
+        </p>
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-8">
-        {showClerkProfile ? (
-          <div className="flex flex-col items-center">
-            <UserProfile routing="hash" />
-            <button 
-              onClick={() => setShowClerkProfile(false)}
-              className="mt-4 text-xs font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+      {showClerkProfile ? (
+        /* ── Clerk Full Profile ─────────────────────── */
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
+        >
+          <UserProfile routing="hash" />
+          <button
+            onClick={() => setShowClerkProfile(false)}
+            className="btn-ghost"
+            style={{ fontSize: '0.8125rem' }}
+          >
+            ← Back to Summary
+          </button>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+        >
+          {/* ── Profile Card ────────────────────────── */}
+          <div
+            style={{
+              background: 'var(--gradient-primary)',
+              padding: '2rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                background: 'rgba(255,255,255,0.15)',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '9999px',
+                overflow: 'hidden',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              Back to Summary
+              {user.imageUrl ? (
+                <img
+                  src={user.imageUrl}
+                  alt="Profile"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <User size={32} color="rgba(255,255,255,0.6)" />
+              )}
+            </div>
+            <div>
+              <h2
+                style={{
+                  fontFamily: "'Comfortaa', system-ui, sans-serif",
+                  fontWeight: 700,
+                  fontSize: '1.25rem',
+                  color: '#ffffff',
+                  marginBottom: '0.25rem',
+                }}
+              >
+                {user.fullName || user.username || email || 'User'}
+              </h2>
+              <span
+                className="badge"
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  color: '#ffffff',
+                  fontSize: '0.65rem',
+                }}
+              >
+                <Shield size={10} />
+                Premium Plan
+              </span>
+            </div>
+          </div>
+
+          {/* ── Account Info ────────────────────────── */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid rgba(189,200,204,0.2)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.625rem 1.25rem',
+                background: '#f8f3e7',
+                borderBottom: '1px solid rgba(189,200,204,0.2)',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  color: '#6e797c',
+                }}
+              >
+                Account Information
+              </span>
+            </div>
+
+            {/* Email Row */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem 1.25rem',
+                borderBottom: '1px solid rgba(189,200,204,0.15)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: 'rgba(0,104,121,0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#006879',
+                  }}
+                >
+                  <Mail size={16} />
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: '#6e797c',
+                      marginBottom: '0.125rem',
+                    }}
+                  >
+                    Email Address
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
+                      fontSize: '0.875rem',
+                      color: '#1d1c15',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {email}
+                  </p>
+                </div>
+              </div>
+              {user.primaryEmailAddress?.verification.status === 'verified' && (
+                <CheckCircle2 size={16} color="#006879" />
+              )}
+            </div>
+
+            {/* User ID Row */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '1rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: 'rgba(0,104,121,0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#006879',
+                  }}
+                >
+                  <User size={16} />
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: '#6e797c',
+                      marginBottom: '0.125rem',
+                    }}
+                  >
+                    User ID
+                  </p>
+                  <p
+                    style={{
+                      fontSize: '0.7rem',
+                      fontFamily: 'monospace',
+                      color: '#3e494c',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {user.id}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Actions ─────────────────────────────── */}
+          <div
+            style={{
+              background: '#f8f3e7',
+              border: '1px solid rgba(189,200,204,0.2)',
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              onClick={() => setShowClerkProfile(true)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem 1.25rem',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid rgba(189,200,204,0.2)',
+                cursor: 'pointer',
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
+                transition: 'background-color 0.15s',
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ede8dc')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Shield size={16} color="#006879" />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1d1c15' }}>
+                  Manage Account Settings
+                </span>
+              </div>
+              <ChevronRight size={16} color="#bdc8cc" />
+            </button>
+
+            <button
+              onClick={() => navigate('/wallet')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem 1.25rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
+                transition: 'background-color 0.15s',
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ede8dc')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <ChevronRight
+                  size={16}
+                  color="#006879"
+                  style={{ transform: 'scaleX(-1)' }}
+                />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1d1c15' }}>
+                  Wallet & Billing
+                </span>
+              </div>
+              <ChevronRight size={16} color="#bdc8cc" />
             </button>
           </div>
-        ) : (
-          <div className="space-y-8">
-            <div className="flex flex-col items-center py-8">
-              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mb-4 shadow-2xl overflow-hidden">
-                {user.imageUrl ? (
-                  <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="text-white/20" size={48} />
-                )}
-              </div>
-              <h2 className="text-lg font-bold tracking-tight">{user.fullName || user.username || email}</h2>
-              <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mt-1">User Profile</p>
-            </div>
-
-            <div className="space-y-6">
-              <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Mail className="text-white/20" size={18} />
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Email Address</span>
-                      <span className="text-sm font-medium">{email}</span>
-                    </div>
-                  </div>
-                  {user.primaryEmailAddress?.verification.status === 'verified' && (
-                    <CheckCircle2 size={16} className="text-green-500" />
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <User className="text-white/20" size={18} />
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">User ID</span>
-                    <span className="text-[10px] font-mono break-all text-white/60">{user.id}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setShowClerkProfile(true)}
-                className="w-full bg-white text-black hover:bg-white/90 font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl"
-              >
-                <Save size={18} />
-                <span>Manage Account Settings</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
+        </motion.div>
+      )}
     </div>
   );
 }

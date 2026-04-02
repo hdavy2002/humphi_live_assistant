@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { History, ArrowLeft, TrendingUp, TrendingDown, Clock, Search } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, Clock, Loader2, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Transaction } from '../types';
@@ -9,90 +9,288 @@ export default function Records() {
   const { user } = useUser();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'topup' | 'usage'>('all');
   const navigate = useNavigate();
 
+  /* ── Data fetching — UNCHANGED ── */
   useEffect(() => {
-    if (user) {
-      fetchTransactions();
-    }
+    if (user) fetchTransactions();
   }, [user]);
 
   const fetchTransactions = async () => {
     if (!user) return;
     setLoading(true);
-
     try {
       const response = await fetch(`/api/wallet/transactions?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
-        setTransactions(Array.isArray(data) ? data : (data.transactions || []));
+        setTransactions(Array.isArray(data) ? data : data.transactions || []);
       }
     } catch (err) {
-      console.error("Error fetching transactions:", err);
+      console.error('Error fetching transactions:', err);
       setTransactions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden max-w-[450px] mx-auto border-x border-white/5 shadow-2xl">
-      <header className="shrink-0 p-4 border-b border-white/10 bg-[#0d0d0d] flex items-center gap-4">
-        <button onClick={() => navigate('/wallet')} className="p-2 hover:bg-white/5 rounded-xl text-white/40 transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-sm font-bold uppercase tracking-widest">Records</h1>
-      </header>
+  const filtered = transactions.filter((tx) => {
+    if (filter === 'all') return true;
+    if (filter === 'topup') return tx.type === 'topup' || tx.type === 'TOP_UP';
+    return tx.type !== 'topup' && tx.type !== 'TOP_UP';
+  });
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading ? (
-          <div className="h-full flex items-center justify-center text-white/10 italic">Loading transactions...</div>
-        ) : transactions.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-white/10 text-center p-8">
-            <History size={48} className="mb-4 opacity-20" />
-            <h3 className="text-sm font-bold uppercase tracking-widest mb-2">No Records</h3>
-            <p className="text-xs max-w-[200px] leading-relaxed">Your transaction history will appear here.</p>
+  return (
+    <div style={{ padding: '1.5rem 2rem', maxWidth: 800, margin: '0 auto' }}>
+      {/* ── Page Header ───────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '2rem',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
+              fontWeight: 700,
+              fontSize: '1.5rem',
+              color: '#1d1c15',
+              marginBottom: '0.25rem',
+            }}
+          >
+            Transaction History
+          </h1>
+          <p style={{ color: '#3e494c', fontSize: '0.875rem' }}>
+            All your wallet activity in one place.
+          </p>
+        </div>
+
+        {/* Filter tabs */}
+        <div
+          style={{
+            display: 'flex',
+            background: '#f2ede2',
+            border: '1px solid rgba(189,200,204,0.25)',
+            padding: '3px',
+            gap: '2px',
+          }}
+        >
+          {(['all', 'topup', 'usage'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: '0.4rem 0.875rem',
+                background: filter === f ? '#006879' : 'transparent',
+                color: filter === f ? '#ffffff' : '#6e797c',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: "'Comfortaa', system-ui, sans-serif",
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'capitalize',
+                transition: 'all 0.15s',
+              }}
+            >
+              {f === 'all' ? 'All' : f === 'topup' ? 'Top-ups' : 'Usage'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Content ───────────────────────────────────── */}
+      {loading ? (
+        <div
+          style={{
+            padding: '5rem 1rem',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <Loader2 size={28} className="animate-spin" style={{ color: '#bdc8cc' }} />
+          <p style={{ color: '#6e797c', fontSize: '0.875rem', fontFamily: "'Comfortaa', system-ui, sans-serif" }}>
+            Loading transactions...
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div
+          style={{
+            padding: '5rem 1rem',
+            textAlign: 'center',
+            background: '#f8f3e7',
+            border: '1px solid rgba(189,200,204,0.2)',
+          }}
+        >
+          <History size={36} style={{ margin: '0 auto 1rem', color: '#bdc8cc' }} />
+          <p
+            style={{
+              fontFamily: "'Comfortaa', system-ui, sans-serif",
+              fontWeight: 700,
+              fontSize: '0.9375rem',
+              color: '#6e797c',
+              marginBottom: '0.375rem',
+            }}
+          >
+            No Records
+          </p>
+          <p style={{ color: '#bdc8cc', fontSize: '0.8125rem' }}>
+            {filter === 'all'
+              ? 'Your transaction history will appear here.'
+              : `No ${filter === 'topup' ? 'top-up' : 'usage'} transactions found.`}
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid rgba(189,200,204,0.2)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Table Header */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr auto',
+              padding: '0.625rem 1.25rem',
+              background: '#f8f3e7',
+              borderBottom: '1px solid rgba(189,200,204,0.2)',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.07em',
+                color: '#6e797c',
+              }}
+            >
+              Transaction
+            </span>
+            <span
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.07em',
+                color: '#6e797c',
+              }}
+            >
+              Amount
+            </span>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {transactions.map((tx) => (
-              <motion.div 
+
+          {/* Rows */}
+          {filtered.map((tx, idx) => {
+            const isCredit = tx.type === 'topup' || tx.type === 'TOP_UP';
+            return (
+              <motion.div
                 key={tx.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-colors"
+                transition={{ delay: idx * 0.04 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.875rem 1.25rem',
+                  borderBottom: '1px solid rgba(189,200,204,0.15)',
+                  cursor: 'default',
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.backgroundColor = '#f8f3e7')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.backgroundColor = '')}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    tx.type === 'topup' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                  }`}>
-                    {tx.type === 'topup' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                {/* Left */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: isCredit ? 'rgba(0,104,121,0.1)' : 'rgba(157,67,0,0.1)',
+                      color: isCredit ? '#006879' : '#9d4300',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isCredit ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {tx.type === 'topup' ? 'Wallet Top-up' : 'Usage Charge'}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+                  <div>
+                    <p
+                      style={{
+                        fontFamily: "'Comfortaa', system-ui, sans-serif",
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        color: '#1d1c15',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      {isCredit ? 'Wallet Top-up' : 'Usage Charge'}
+                    </p>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        color: '#6e797c',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                      }}
+                    >
                       <Clock size={10} />
-                      <span>{new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>
+                        {new Date(tx.created_at).toLocaleDateString()}{' '}
+                        {new Date(tx.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className={`text-sm font-bold ${
-                    tx.type === 'topup' ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                    {tx.type === 'topup' ? '+' : '-'}${tx.amount.toFixed(2)}
-                  </span>
-                  <span className="text-[8px] text-white/20 uppercase font-black tracking-widest mt-0.5">
+
+                {/* Right */}
+                <div style={{ textAlign: 'right' }}>
+                  <p
+                    style={{
+                      fontFamily: "'Comfortaa', system-ui, sans-serif",
+                      fontWeight: 700,
+                      fontSize: '0.9375rem',
+                      color: isCredit ? '#006879' : '#ba1a1a',
+                    }}
+                  >
+                    {isCredit ? '+' : '-'}${tx.amount.toFixed(2)}
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: '#bdc8cc',
+                    }}
+                  >
                     {tx.status}
                   </span>
                 </div>
               </motion.div>
-            ))}
-          </div>
-        )}
-      </main>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
