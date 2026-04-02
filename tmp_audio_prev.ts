@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Audio processing utilities for Gemini Live API (PCM 16-bit, 16kHz)
  */
 

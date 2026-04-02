@@ -32,9 +32,24 @@ export const LogProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         message,
         details,
       };
-      // Keep only last 1000 logs to prevent memory issues
-      const updated = [...prev, newLog].slice(-1000);
-      localStorage.setItem('humphi_session_logs', JSON.stringify(updated));
+      
+      // Keep only last 200 logs to prevent memory/UI issues with diagnostic data
+      const updated = [...prev, newLog].slice(-200);
+      
+      // Only persist non-system/non-diagnostic logs to localStorage to prevent size errors
+      // or simply don't persist details for non-error logs.
+      const persistableLogs = updated.map(l => {
+         if (l.type === 'error' || l.type === 'warn') return l;
+         return { ...l, details: undefined }; // Strip large metadata for stability
+      });
+      
+      try {
+        localStorage.setItem('humphi_session_logs', JSON.stringify(persistableLogs));
+      } catch (e) {
+        // If localStorage is full, clear it and try one more time or just fail silently
+        console.warn('Log cache full, could not persist.');
+      }
+      
       return updated;
     });
   }, []);

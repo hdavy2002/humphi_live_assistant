@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText, 
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
@@ -67,8 +67,8 @@ const TIER_2_LANGUAGES = [
 const ACCENTS: Record<string, string[]> = {
   "English (US)": ["Gen. American", "New York", "Southern", "Californian", "British RP", "Cockney", "Scottish", "Irish", "Australian", "New Zealand", "Indian", "South African", "Canadian", "Jamaican"],
   "Spanish (US)": ["Mexican", "Castilian (Spain)", "Argentine", "Colombian", "Chilean", "Cuban", "Puerto Rican"],
-  "French (France)": ["Parisian", "Québécois", "Belgian", "Swiss", "West African"],
-  "Portuguese (Brazil)": ["Brazilian (São Paulo)", "European (Lisbon)"],
+  "French (France)": ["Parisian", "Qu├⌐b├⌐cois", "Belgian", "Swiss", "West African"],
+  "Portuguese (Brazil)": ["Brazilian (S├úo Paulo)", "European (Lisbon)"],
   "Arabic (Egypt)": ["Egyptian", "Gulf/Saudi", "Levantine", "Moroccan", "Iraqi"],
   "German": ["Standard German", "Austrian", "Swiss German", "Bavarian"],
   "Italian": ["Standard (Tuscan)", "Roman", "Milanese", "Sicilian"],
@@ -109,18 +109,11 @@ const VOICE_OPTIONS = [
   { name: "Sulafat", style: "Warm", gender: "female" }
 ];
 
-const WELCOME_MESSAGES: Record<string, string> = {
-  "Tech Expert": "Hello! I am your Technical Expert. Looking to debug something, discuss architecture, or explore new stacks?",
-  "Product Manager": "Hi there! I am your Product Manager. Ready to refine requirements, prioritize features, and talk about the roadmap?",
-  "Business Analyst": "Greetings. I'm your Business Analyst. Let's look at the data, requirements, and business value together.",
-  "Creative Designer": "Hi! I'm your Creative Designer. Let's talk about user experience, visual consistency, and creative solutions.",
-  "Project Coordinator": "Hello! I am your Project Coordinator. Let's get organized, check on deadlines, and clear any blockers."
-};
+// Local LogItem removed - handled by LogContext and standalone Logs page
 
 export default function GeminiLive() {
   const { user } = useUser();
   const { signOut, getToken } = useAuth();
-  const { logs, addLog, clearLogs } = useLogs();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -139,6 +132,8 @@ export default function GeminiLive() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
+      // The new API endpoint returns the profile object directly 
+      // (no nested 'profile' wrapper, and balance is directly under walletBalance)
       if (data && data.id) {
           setProfile({
               ...data,
@@ -150,25 +145,25 @@ export default function GeminiLive() {
     }
   };
 
-  // -- State: Lifecycle & Status --
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const { logs, addLog, clearLogs } = useLogs();
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
   const [permissionState, setPermissionState] = useState<'idle' | 'denied' | 'granted'>('idle');
   const [permissionDeniedType, setPermissionDeniedType] = useState<'mic' | 'camera' | 'both' | null>(null);
 
-  // -- State: Settings --
+  // Settings
   const [selectedMic, setSelectedMic] = useState<string>(() => localStorage.getItem('selectedMic') || "default");
   const [selectedVoice, setSelectedVoice] = useState<string>(() => localStorage.getItem('selectedVoice') || "Kore");
   const [selectedLanguage, setSelectedLanguage] = useState<string>(() => localStorage.getItem('selectedLanguage') || "English (US)");
   const [selectedAccent, setSelectedAccent] = useState<string>(() => localStorage.getItem('selectedAccent') || "Standard");
   
-  // -- State: Agent identity --
+  // Agent identity
   const [agentName, setAgentName] = useState(() => localStorage.getItem('agentName') || 'Humphi');
   const [agentRole, setAgentRole] = useState(() => localStorage.getItem('agentRole') || 'Tech Expert');
   const [agentDescription, setAgentDescription] = useState(() => localStorage.getItem('agentDescription') || ROLE_PRESETS["Tech Expert"]);
@@ -179,29 +174,10 @@ export default function GeminiLive() {
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const dropTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const prevRoleRef = useRef(agentRole);
-
-  // Auto-sync welcome message on role change
-  useEffect(() => {
-    // If user hasn't customized the welcome message (it matches the default for the PREVIOUS role),
-    // then update it to the default for the NEW role.
-    const prevDefault = WELCOME_MESSAGES[prevRoleRef.current];
-    if (!welcomeMessage || welcomeMessage === prevDefault) {
-        const nextMsg = WELCOME_MESSAGES[agentRole];
-        if (nextMsg) setWelcomeMessage(nextMsg);
-    }
-    prevRoleRef.current = agentRole;
-  }, [agentRole]);
-
-  // -- Lifecycle: Persistence Effects --
+  // Persistence Effects
   useEffect(() => { localStorage.setItem('selectedMic', selectedMic); }, [selectedMic]);
   useEffect(() => { localStorage.setItem('selectedVoice', selectedVoice); }, [selectedVoice]);
   useEffect(() => { localStorage.setItem('selectedLanguage', selectedLanguage); }, [selectedLanguage]);
-  useEffect(() => { localStorage.setItem('selectedAccent', selectedAccent); }, [selectedAccent]);
-  useEffect(() => { localStorage.setItem('agentName', agentName); }, [agentName]);
-  useEffect(() => { localStorage.setItem('agentRole', agentRole); }, [agentRole]);
-  useEffect(() => { localStorage.setItem('agentDescription', agentDescription); }, [agentDescription]);
-  useEffect(() => { localStorage.setItem('welcomeMsg', welcomeMessage); }, [welcomeMessage]);
   useEffect(() => { localStorage.setItem('selectedAccent', selectedAccent); }, [selectedAccent]);
   useEffect(() => { localStorage.setItem('agentName', agentName); }, [agentName]);
   useEffect(() => { localStorage.setItem('agentRole', agentRole); }, [agentRole]);
@@ -294,11 +270,11 @@ Identity Rules:
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // Real-time balance polling every 60 seconds while connected
+  // Real-time balance polling every 15 seconds while connected
   useEffect(() => {
     let interval: any;
     if (isConnected) {
-      interval = setInterval(fetchProfile, 60000);
+      interval = setInterval(fetchProfile, 15000);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -341,7 +317,7 @@ Identity Rules:
       setPermissionState('granted');
     }
 
-    // Step 2: Enumerate devices — now labels will be available
+    // Step 2: Enumerate devices ΓÇö now labels will be available
     try {
       const devs = await navigator.mediaDevices.enumerateDevices();
       
@@ -365,71 +341,29 @@ Identity Rules:
 
   // addLog now comes from useLogs() context
 
-  const handleServerMessage = async (message: LiveServerMessage) => {
-    if (message.serverContent?.modelTurn?.parts) {
-      const parts = message.serverContent.modelTurn.parts;
-      
-      // Process Text
-      const textParts = parts.filter(p => p.text).map(p => p.text).join(" ");
-      if (textParts) {
-        setMessages(prev => [...prev, {
-          id: Math.random().toString(36).slice(2),
-          role: 'model',
-          text: textParts,
-          timestamp: new Date()
-        }]);
-      }
-
-      // Process Audio
-      const audioParts = parts.filter(p => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
-      if (audioParts.length > 0) {
-        addLog('info', `Received ${audioParts.length} audio chunks from Gemini`);
-      }
-      
-      for (const p of audioParts) {
-        if (p.inlineData && audioPlayerRef.current) {
-          resetTimers();
-          await audioPlayerRef.current.playChunk(p.inlineData.data);
-        }
-      }
-    }
-
-    if (message.serverContent?.interrupted) {
-      addLog('warn', 'Gemini interrupted (user speaking)');
-      audioPlayerRef.current?.stop();
-    }
-
-    if (message.usageMetadata) {
-      const usage = {
-        input: message.usageMetadata.promptTokenCount || 0,
-        output: (message.usageMetadata as any).candidatesTokenCount || (message.usageMetadata as any).responseTokenCount || 0,
-        total: message.usageMetadata.totalTokenCount || 0
-      };
-      setTokenUsage(usage);
-    }
-  };
-
   const startSession = async () => {
     if (isConnecting || isConnected) return;
 
     if (!profile || (profile.wallet_balance || 0) <= 0) {
-      addLog('error', 'Insufficient balance for Live Video/Audio session.');
+      addLog('error', 'Insufficient wallet balance. Please top up your wallet.');
       navigate('/wallet');
       return;
     }
 
     setIsConnecting(true);
-    setMessages([]);
+    setMessages([]); // Clear previous messages
     setTokenUsage({ input: 0, output: 0, total: 0 });
-    addLog('system', 'Initializing secure WebSocket connection...');
+    addLog('info', 'Starting Gemini Live session...');
     
     try {
+      // We need the API key from the environment.
+      // In this app, vite.config.ts exposes it via process.env.GEMINI_API_KEY
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key configuration error");
+      if (!apiKey) throw new Error("VITE_GEMINI_API_KEY not found in environment");
 
       const ai = new GoogleGenAI({ apiKey });
+      
       audioPlayerRef.current = new AudioPlayer();
-      audioPlayerRef.current.setMuted(isSpeakerMuted);
 
       const langCode = TIER_1_LANGUAGES.find(l => l.name === selectedLanguage)?.code || 'en-US';
 
@@ -452,28 +386,30 @@ Identity Rules:
             setIsConnected(true);
             connectedRef.current = true;
             setIsConnecting(false);
-            addLog('info', `Connected as ${agentName} (${agentRole})`);
+            addLog('info', 'Connected to Gemini Live');
             
             setIsMicOn(true);
             startAudioCapture();
-            resetTimers();
 
-            // Auto-trigger welcome
+            // Trigger a welcome message
+            resetTimers();
             setTimeout(() => {
                 if (sessionRef.current && connectedRef.current) {
-                    const msg = welcomeMessage || `Hello! I am ${agentName}. How can I assist you?`;
+                    const msg = welcomeMessage || `Hello! I am ${agentName}, your ${agentRole}. How can I help you today?`;
                     sessionRef.current.sendRealtimeInput([{ text: msg }]);
-                    addLog('info', 'Sent welcome trigger');
                 }
-            }, 800);
+            }, 1000);
           },
-          onmessage: (message: LiveServerMessage) => handleServerMessage(message),
+          onmessage: (message: LiveServerMessage) => {
+            handleServerMessage(message);
+          },
           onclose: () => {
             connectedRef.current = false;
             stopSession();
+            addLog('info', 'Session closed');
           },
           onerror: (err) => {
-            addLog('error', 'Connection dropped', err);
+            addLog('error', 'Session error', err);
             stopSession();
           }
         }
@@ -481,51 +417,42 @@ Identity Rules:
 
       sessionRef.current = session;
     } catch (err) {
-      addLog('error', 'Authentication or Network failure', err);
+      addLog('error', 'Failed to connect', err);
       setIsConnecting(false);
       stopSession();
     }
   };
 
   const saveSessionAndBill = async () => {
-    try {
-      if (!user?.id) return;
-      const transcript = messages.map(m => `[${m.role}] ${m.text}`).join('\n');
-      const token = await getToken();
-
-      addLog('info', 'Saving session and processing billing...', { tokens: tokenUsage });
-
-      const res = await fetch('/api/session/save', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          transcript,
-          tokenUsage,
-          agentRole,
-          agentName
-        })
-      });
-
-      if (res.ok) {
-        addLog('success', 'Session saved and billed successfully');
-        fetchProfile(); // Refresh balance
-      } else {
-        const err = await res.json();
-        addLog('error', 'Billing failed', err);
+      try {
+          const token = await getToken();
+          const transcript = messages.map(m => `[${m.role}] ${m.text}`).join('\n');
+          
+          addLog('info', 'Saving session and processing billing...', { tokens: tokenUsage });
+          
+          const res = await fetch('/api/session/save', {
+              method: 'POST',
+              headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                  transcript,
+                  tokens: tokenUsage
+              })
+          });
+          
+          if (res.ok) {
+              addLog('info', 'Session successfully saved to memory and billed.');
+              fetchProfile(); // Refresh balance one last time
+          }
+      } catch (err) {
+          addLog('error', 'Failed to save session/process billing', err);
       }
-    } catch (err) {
-      addLog('error', 'Failed to save session', err);
-    }
   };
 
   const stopSession = () => {
     if (!connectedRef.current && !isConnecting) return;
-    
-    addLog('system', 'Closing session and clearing tracks...');
     
     setIsConnected(false);
     connectedRef.current = false;
@@ -534,12 +461,8 @@ Identity Rules:
     setIsScreenSharing(false);
     setIsCameraOn(false);
     
-    clearTimers();
-
     if (sessionRef.current) {
-      try {
-        sessionRef.current.close();
-      } catch (err) {}
+      sessionRef.current.close();
       sessionRef.current = null;
     }
     
@@ -552,8 +475,52 @@ Identity Rules:
       audioPlayerRef.current = null;
     }
 
+    // Trigger save and billing at the end
     if (messages.length > 0) {
-      saveSessionAndBill();
+        saveSessionAndBill();
+    }
+
+    addLog('info', 'Session ended');
+  };
+
+  const handleServerMessage = async (message: LiveServerMessage) => {
+    if (message.serverContent?.modelTurn?.parts) {
+      const textParts = message.serverContent.modelTurn.parts
+        .filter(p => p.text)
+        .map(p => p.text)
+        .join(" ");
+      
+      if (textParts) {
+        setMessages(prev => [...prev, {
+          id: Math.random().toString(36).slice(2),
+          role: 'model',
+          text: textParts,
+          timestamp: new Date()
+        }]);
+      }
+
+      const audioParts = message.serverContent.modelTurn.parts
+        .filter(p => p.inlineData?.data && p.inlineData.mimeType.includes('audio'));
+      
+      for (const p of audioParts) {
+        if (p.inlineData && audioPlayerRef.current) {
+          resetTimers(); // Reset timers on any model output
+          await audioPlayerRef.current.playChunk(p.inlineData.data);
+        }
+      }
+    }
+
+    if (message.serverContent?.interrupted) {
+      addLog('info', 'Model interrupted');
+      audioPlayerRef.current?.stop();
+    }
+
+    if (message.usageMetadata) {
+      setTokenUsage(prev => ({
+        input: message.usageMetadata?.promptTokenCount || prev.input,
+        output: (message.usageMetadata as any).candidatesTokenCount || (message.usageMetadata as any).responseTokenCount || prev.output,
+        total: message.usageMetadata?.totalTokenCount || prev.total
+      }));
     }
   };
 
@@ -867,7 +834,7 @@ Identity Rules:
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative selection:bg-[#22C9E8]/30">
-      {/* ── Permissions Denied Modal ─────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Permissions Denied Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <AnimatePresence>
         {permissionState === 'denied' && (
           <motion.div
@@ -902,7 +869,7 @@ Identity Rules:
               <div className="px-6 pb-6 space-y-3">
                 <div className="text-[9px] uppercase font-black tracking-widest text-white/30 mb-3">How to fix this</div>
                 {[
-                  { num: '1', text: 'Click the 🔒 lock or camera icon in your browser\'s address bar' },
+                  { num: '1', text: 'Click the ≡ƒöÆ lock or camera icon in your browser\'s address bar' },
                   { num: '2', text: permissionDeniedType === 'both' ? 'Set Microphone and Camera to "Allow"' : permissionDeniedType === 'mic' ? 'Set Microphone to "Allow"' : 'Set Camera to "Allow"' },
                   { num: '3', text: 'Refresh this page and try again' },
                 ].map(step => (
@@ -938,7 +905,7 @@ Identity Rules:
         )}
       </AnimatePresence>
 
-      {/* ── Mobile Sidebar Menu ──────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Mobile Sidebar Menu ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
@@ -1001,7 +968,7 @@ Identity Rules:
         )}
       </AnimatePresence>
 
-      {/* ── Unified Hardware Header ───────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Unified Hardware Header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <header className="shrink-0 p-3 pt-4 border-b border-white/5 bg-[#0d0d0d] flex items-center justify-between gap-4 z-20 relative">
         <div className="flex items-center gap-3 md:gap-4 leading-none">
           {/* Mobile Menu Trigger */}
@@ -1100,7 +1067,7 @@ Identity Rules:
             <Settings size={18} className={cn("transition-transform duration-500", isHardwareMenuOpen && "rotate-90 text-[#22C9E8]")} />
           </button>
 
-          {/* ── Hardware Diagnostics Hub (Dropdown) ─────────────────── */}
+          {/* ΓöÇΓöÇ Hardware Diagnostics Hub (Dropdown) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
           <AnimatePresence>
             {isHardwareMenuOpen && (
               <motion.div
@@ -1404,7 +1371,7 @@ Identity Rules:
         </div>
       </header>
 
-      {/* ── Area 1: Responsive Stream Container ───────────────────────── */}
+      {/* ΓöÇΓöÇ Area 1: Responsive Stream Container ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
         <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group">
           <AnimatePresence mode="wait">
@@ -1494,7 +1461,7 @@ Identity Rules:
           </AnimatePresence>
         </div>
 
-        {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
+        {/* ΓöÇΓöÇ Area 3: Large Responsive Control Tabs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
           <div className="p-2 bg-[#1A2232] rounded-[32px] md:rounded-[40px] border-4 border-black/40 shadow-2xl flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
             <button 
