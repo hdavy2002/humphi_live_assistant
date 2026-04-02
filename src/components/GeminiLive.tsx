@@ -78,7 +78,7 @@ export default function GeminiLive() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
   const [selectedAccent, setSelectedAccent] = useState<string>("Neutral");
   const [systemPrompt] = useState<string>(
-    "You are a helpful assistant and you also also a tecch expert helping users navigate all windows issues, so guide them if they need any tech help. You are also an IT system administrator have full knwledge on how to fix network, routers, etc. Apart from that you are gentle, warm and loving person."
+    "You are a helpful assistant and tech expert. When a session starts, please warmly welcome the user and offer your assistance. You help users with Windows issues, IT systems, networks, and general tech support. You are gentle, proactive, and authoritative yet kind."
   );
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [screenQuality, setScreenQuality] = useState(0.6);
@@ -186,6 +186,13 @@ export default function GeminiLive() {
             
             setIsMicOn(true);
             startAudioCapture();
+
+            // Trigger a welcome message from Gemini so user hears it immediately
+            setTimeout(() => {
+                if (sessionRef.current && connectedRef.current) {
+                    sessionRef.current.sendRealtimeInput([{ text: "Hello! Please introduce yourself briefly and welcome the user." }]);
+                }
+            }, 1000);
           },
           onmessage: (message: LiveServerMessage) => {
             handleServerMessage(message);
@@ -740,102 +747,117 @@ export default function GeminiLive() {
         <AnimatePresence mode="wait">
           {activeTab === 'chat' && (
             <motion.div 
-              key="chat"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex-1 flex flex-col overflow-hidden"
+              key="stream"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col p-4 md:p-8"
             >
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-                {messages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-white/10 text-center p-8">
-                    <MessageSquare size={48} className="mb-4 opacity-20" />
-                    <h3 className="text-sm font-bold uppercase tracking-widest mb-2">Gemini Live</h3>
-                    <p className="text-xs max-w-[200px] leading-relaxed">
-                      Start a session to interact with Gemini using voice and screen sharing.
-                    </p>
-                  </div>
-                )}
-                {messages.map((m) => (
-                  <div key={m.id} className={cn(
-                    "flex flex-col max-w-[90%]",
-                    m.role === 'user' ? "ml-auto items-end" : "items-start"
-                  )}>
-                    <div className={cn(
-                      "p-3 rounded-2xl text-xs leading-relaxed shadow-sm",
-                      m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/10 text-white/90 rounded-tl-none"
-                    )}>
-                      <ReactMarkdown>{m.text}</ReactMarkdown>
-                    </div>
-                    <span className="text-[8px] text-white/20 mt-1 px-1 uppercase font-bold">
-                      {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
+              {/* ── Area 1: Main Stream Box ───────────────────────────────── */}
+              <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[48px] border-4 border-black/20 shadow-2xl overflow-hidden relative group">
+                <AnimatePresence mode="wait">
+                  {(isScreenSharing || isCameraOn) ? (
+                    <motion.div 
+                      key="video"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.05 }}
+                      className="absolute inset-0 z-10"
+                    >
+                      <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        className={cn(
+                          "w-full h-full",
+                          isScreenSharing ? "object-contain bg-black/40" : "object-cover"
+                        )}
+                      />
+                      <div className="absolute top-8 left-8 flex items-center gap-3">
+                         <div className="px-4 py-2 bg-[#22C9E8] rounded-2xl text-[#0D1117] text-[10px] font-bold uppercase tracking-widest shadow-xl flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 bg-[#0D1117] rounded-full animate-pulse" />
+                           {isScreenSharing ? "Browser Tab Shared" : "Webcam Stream Active"}
+                         </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center"
+                    >
+                      <div className="w-24 h-24 bg-white/5 rounded-[32px] border-2 border-white/10 flex items-center justify-center mb-8 shadow-inner">
+                        <Terminal size={48} className="text-[#22C9E8]/40" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                        Ready for <span className="text-[#22C9E8]">Live Interaction</span>
+                      </h3>
+                      <p className="text-white/40 max-w-sm text-sm font-medium leading-relaxed">
+                        Start a session to interact with your AI assistant using voice and real-time visual context.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                {/* Visualizer Overlay */}
+                <div className="absolute bottom-8 right-8 flex items-end gap-1.5 h-12 z-20">
+                  {[...Array(12)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ 
+                        height: isMicOn && isConnected ? Math.max(4, micVolume * (32 + Math.random() * 24)) : 4,
+                        opacity: isMicOn && isConnected ? 1 : 0.1
+                      }}
+                      className={cn(
+                        "w-1 rounded-full",
+                        isConnected ? "bg-[#22C9E8]" : "bg-white/20"
+                      )}
+                    />
+                  ))}
+                </div>
               </div>
 
-              {/* Controls Bar */}
-              <div className="p-4 bg-gradient-to-t from-[#0a0a0a] to-transparent space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+              {/* ── Area 3: Control Tabs ──────────────────────────────────── */}
+              <div className="shrink-0 mt-8 flex justify-center">
+                <div className="p-2 bg-[#1A2232] rounded-[32px] border-2 border-black/20 shadow-2xl flex items-center gap-2">
                   <button 
                     onClick={toggleMic}
                     disabled={!isConnected && !isConnecting}
                     className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isMicOn ? "bg-green-500/10 border-green-500/30 text-green-500" : 
-                      isConnecting ? "bg-white/5 border-white/10 text-white/20 animate-pulse" :
-                      "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
+                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
+                      isMicOn ? "bg-[#22C9E8] text-[#0D1117] shadow-lg shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
                     )}
                   >
-                    {isMicOn ? <Mic size={16} /> : <MicOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">
-                      {isConnecting && !isMicOn ? "Wait..." : "Mic"}
-                    </span>
+                    {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Mic</span>
                   </button>
+
                   <button 
                     onClick={toggleCamera}
                     disabled={!isConnected}
                     className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isCameraOn ? "bg-orange-500/10 border-orange-500/30 text-orange-500" : "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
+                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
+                      isCameraOn ? "bg-[#FF6619] text-white shadow-lg shadow-[#FF6619]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
                     )}
                   >
-                    {isCameraOn ? <Video size={16} /> : <VideoOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">Cam</span>
+                    <Video size={20} />
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Cam</span>
                   </button>
+
                   <button 
                     onClick={toggleScreenShare}
                     disabled={!isConnected}
                     className={cn(
-                      "py-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all",
-                      isScreenSharing ? "bg-blue-500/10 border-blue-500/30 text-blue-500" : "bg-white/5 border-white/10 text-white/40 disabled:opacity-20"
+                      "px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20",
+                      isScreenSharing ? "bg-[#22C9E8] text-[#0D1117] shadow-lg shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
                     )}
                   >
-                    {isScreenSharing ? <Monitor size={16} /> : <MonitorOff size={16} />}
-                    <span className="text-[10px] uppercase font-bold tracking-wider">Screen</span>
+                    <Monitor size={20} />
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Tab</span>
                   </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input 
-                      type="text"
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Type a message..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-4 pr-10 text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
-                    />
-                    <button 
-                      onClick={handleSendMessage}
-                      disabled={!isConnected || !inputText.trim()}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg disabled:text-white/10"
-                    >
-                      <Send size={16} />
-                    </button>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1039,36 +1061,7 @@ export default function GeminiLive() {
           )}
         </AnimatePresence>
 
-        {/* Visual Preview Thumbnail */}
-        <AnimatePresence>
-          {(isScreenSharing || isCameraOn) && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              className="absolute bottom-20 right-4 w-40 aspect-video bg-black border border-white/20 rounded-lg overflow-hidden shadow-2xl z-50 group"
-            >
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-[8px] font-bold uppercase tracking-widest text-white/80">
-                {isScreenSharing ? 'Screen' : 'Camera'}
-              </div>
-              <button 
-                onClick={isScreenSharing ? stopScreenCapture : stopCameraCapture}
-                className="absolute top-1 right-1 p-1 bg-red-500/80 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X size={10} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Hidden Video for Capture */}
+        {/* Hidden Video for Initial Capture States */}
         {!isScreenSharing && !isCameraOn && (
           <video ref={videoRef} autoPlay playsInline muted className="hidden" />
         )}
