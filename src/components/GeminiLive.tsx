@@ -1089,7 +1089,7 @@ Identity Rules:
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2232] rounded-full border-2 border-black/20 min-w-[70px] md:min-w-[90px]">
             <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-[#22C9E8] animate-pulse" : "bg-white/10")} />
-            <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-white leading-none">
+            <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-white leading-none font-comfortaa">
               {isConnected ? "Live" : "Idle"}
             </span>
           </div>
@@ -1103,7 +1103,7 @@ Identity Rules:
                 ? "bg-red-500/10 text-red-500 border border-red-500/30 rounded-full hover:bg-red-500 hover:text-white" 
                 : "bg-[#FFCC00] text-black rounded-full hover:bg-[#FFD633] shadow-lg shadow-[#FFCC00]/10"
             )}
-            style={{ fontSize: '9px', tracking: '0.1em' }}
+            style={{ fontSize: '9px', tracking: '0.1em', fontFamily: "'Comfortaa', sans-serif" }}
           >
             {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
           </button>
@@ -1112,20 +1112,20 @@ Identity Rules:
         {/* Desktop Metrics */}
         <div className="hidden lg:flex items-center gap-8 px-6 py-1.5 rounded-full bg-[#1A2232] border-2 border-black/20">
           <div className="flex flex-col items-center">
-            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Tokens</span>
-            <span className="text-[11px] font-bold text-[#22C9E8] leading-none">{tokenUsage.total.toLocaleString()}</span>
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Tokens</span>
+            <span className="text-[11px] font-bold text-[#22C9E8] leading-none font-comfortaa">{tokenUsage.total.toLocaleString()}</span>
           </div>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex flex-col items-center">
-            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Cost</span>
-            <span className="text-[11px] font-bold text-green-400 leading-none">
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Cost</span>
+            <span className="text-[11px] font-bold text-green-400 leading-none font-comfortaa">
               ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
             </span>
           </div>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex flex-col items-center">
-            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5">Wallet</span>
-            <span className="text-[11px] font-bold text-orange-400 leading-none">
+            <span className="text-[7px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Wallet</span>
+            <span className="text-[11px] font-bold text-orange-400 leading-none font-comfortaa">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </span>
           </div>
