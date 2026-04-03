@@ -1483,19 +1483,12 @@ Identity Rules:
                   <Terminal size={32} className="text-[#22C9E8]/40 md:w-12 md:h-12" />
                 </div>
                 <h3 className="text-xl md:text-3xl font-bold text-[#FF6619] mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                  Start Your <span className="text-[#22C9E8]">Live Experience</span>
+                  Start Your Live Experience
                 </h3>
                 <p className="text-white max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
                   Connect to Humphi Live to begin a real-time session with your AI assistant using voice and high-fidelity video context.
                 </p>
-                <div className="flex items-center gap-3 p-1.5 bg-[#1A2232] rounded-full border border-black/40">
-                   <div className="px-5 py-2 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/30">
-                      Standard Quality
-                   </div>
-                   <div className="px-5 py-2 bg-[#22C9E8]/10 rounded-full text-[8px] font-black uppercase tracking-widest text-[#22C9E8]">
-                      V3.1 Flash
-                   </div>
-                </div>
+
               </motion.div>
             )}
           </AnimatePresence>
@@ -1508,10 +1501,10 @@ Identity Rules:
               onClick={toggleMic}
               disabled={!isConnected && !isConnecting}
               className={cn(
-                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isMicOn 
                   ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
-                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
+                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               {isMicOn ? <Mic size={24} className="md:w-8 md:h-8" /> : <MicOff size={24} className="md:w-8 md:h-8" />}
@@ -1522,10 +1515,10 @@ Identity Rules:
               onClick={toggleCamera}
               disabled={!isConnected}
               className={cn(
-                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isCameraOn 
                   ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20" 
-                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
+                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               <Video size={24} className="md:w-8 md:h-8" />
@@ -1536,10 +1529,10 @@ Identity Rules:
               onClick={toggleScreenShare}
               disabled={!isConnected}
               className={cn(
-                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isScreenSharing 
                   ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
-                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
+                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               <Monitor size={24} className="md:w-8 md:h-8" />
