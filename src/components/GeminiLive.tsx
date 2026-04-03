@@ -1564,61 +1564,61 @@ Identity Rules:
 
         {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
         <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
-          <div className="p-3 bg-[#1A2232] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-2xl flex items-center gap-3 overflow-x-auto no-scrollbar max-w-full">
-            <button 
+          <div className="p-2 md:p-3 bg-[#1A2232] rounded-[32px] md:rounded-[48px] border-4 border-black/40 shadow-2xl flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar max-w-full">
+            <button
               onClick={toggleMic}
               disabled={!isConnected && !isConnecting}
               className={cn(
-                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isMicOn 
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
-                  : "bg-gray-300 text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isMicOn
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
+                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              {isMicOn ? <Mic size={24} className="md:w-8 md:h-8" /> : <MicOff size={24} className="md:w-8 md:h-8" />}
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
+              {isMicOn ? <Mic size={20} className="md:w-8 md:h-8" /> : <MicOff size={20} className="md:w-8 md:h-8" />}
+              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
             </button>
 
-            <button 
+            <button
               onClick={toggleCamera}
               disabled={!isConnected}
               className={cn(
-                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isCameraOn 
-                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20" 
-                  : "bg-gray-300 text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isCameraOn
+                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20"
+                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <Video size={24} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
+              <Video size={20} className="md:w-8 md:h-8" />
+              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
             </button>
 
             <button
               onClick={toggleScreenShare}
               disabled={!isConnected}
               className={cn(
-                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isScreenSharing
                   ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
-                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <Monitor size={24} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
+              <Monitor size={20} className="md:w-8 md:h-8" />
+              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
             </button>
 
             <button
               onClick={toggleDesktopShare}
               disabled={!isConnected}
               className={cn(
-                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isDesktopSharing
                   ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
-                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <LayoutDashboard size={24} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
+              <LayoutDashboard size={20} className="md:w-8 md:h-8" />
+              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
             </button>
           </div>
         </div>
