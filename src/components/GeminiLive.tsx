@@ -1089,7 +1089,7 @@ Identity Rules:
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2232] rounded-full border-2 border-black/20 min-w-[70px] md:min-w-[90px]">
             <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-[#22C9E8] animate-pulse" : "bg-white/10")} />
-            <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-white leading-none font-comfortaa">
+            <span className="text-[14px] font-semibold uppercase tracking-widest text-white leading-none font-comfortaa">
               {isConnected ? "Live" : "Idle"}
             </span>
           </div>
@@ -1103,7 +1103,7 @@ Identity Rules:
                 ? "bg-red-500/10 text-red-500 border border-red-500/30 rounded-full hover:bg-red-500 hover:text-white" 
                 : "bg-[#FFCC00] text-black rounded-full hover:bg-[#FFD633] shadow-lg shadow-[#FFCC00]/10"
             )}
-            style={{ fontSize: '9px', tracking: '0.1em', fontFamily: "'Comfortaa', sans-serif" }}
+            style={{ fontSize: '14px', letterSpacing: '0.1em', fontFamily: "'Comfortaa', sans-serif" }}
           >
             {isConnecting ? "..." : isConnected ? "End Session" : "Start Session"}
           </button>
@@ -1576,7 +1576,7 @@ Identity Rules:
               )}
             >
               {isMicOn ? <Mic size={20} className="md:w-8 md:h-8" /> : <MicOff size={20} className="md:w-8 md:h-8" />}
-              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
+              <span className="text-[9px] md:text-xs font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
             </button>
 
             <button
@@ -1590,7 +1590,7 @@ Identity Rules:
               )}
             >
               <Video size={20} className="md:w-8 md:h-8" />
-              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
+              <span className="text-[9px] md:text-xs font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
             </button>
 
             <button
@@ -1604,7 +1604,7 @@ Identity Rules:
               )}
             >
               <Monitor size={20} className="md:w-8 md:h-8" />
-              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
+              <span className="text-[9px] md:text-xs font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
             </button>
 
             <button
@@ -1618,7 +1618,7 @@ Identity Rules:
               )}
             >
               <LayoutDashboard size={20} className="md:w-8 md:h-8" />
-              <span className="text-[9px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
+              <span className="text-[9px] md:text-xs font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
             </button>
           </div>
         </div>
