@@ -1572,7 +1572,7 @@ Identity Rules:
                 "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isMicOn 
                   ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
-                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                  : "bg-gray-300 text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               {isMicOn ? <Mic size={24} className="md:w-8 md:h-8" /> : <MicOff size={24} className="md:w-8 md:h-8" />}
@@ -1586,7 +1586,7 @@ Identity Rules:
                 "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isCameraOn 
                   ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20" 
-                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+                  : "bg-gray-300 text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               <Video size={24} className="md:w-8 md:h-8" />
