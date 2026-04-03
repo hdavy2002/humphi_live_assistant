@@ -1508,7 +1508,7 @@ Identity Rules:
               )}
             >
               {isMicOn ? <Mic size={24} className="md:w-8 md:h-8" /> : <MicOff size={24} className="md:w-8 md:h-8" />}
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Mic</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
             </button>
 
             <button 
@@ -1522,7 +1522,7 @@ Identity Rules:
               )}
             >
               <Video size={24} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Cam</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
             </button>
 
             <button 
@@ -1536,7 +1536,7 @@ Identity Rules:
               )}
             >
               <Monitor size={24} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Tab</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
             </button>
           </div>
         </div>
