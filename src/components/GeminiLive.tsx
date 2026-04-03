@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText, 
+  Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText,
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
   MessageSquare, Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
-  Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History
+  Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History, LayoutDashboard
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { cn } from '../lib/utils';
@@ -156,6 +156,7 @@ export default function GeminiLive() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isDesktopSharing, setIsDesktopSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -709,6 +710,73 @@ Identity Rules:
       startScreenCapture();
     } else {
       stopScreenCapture();
+    }
+  };
+
+  const startDesktopCapture = async () => {
+    try {
+      if (isCameraOn) stopCameraCapture();
+      if (isScreenSharing) stopScreenCapture();
+
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'monitor', frameRate: 5 } as any
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(e => addLog('error', 'Video play failed', e));
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      screenIntervalRef.current = window.setInterval(() => {
+        if (videoRef.current && ctx && sessionRef.current && connectedRef.current) {
+          const video = videoRef.current;
+          if (video.readyState < 2) return;
+
+          const ratio = Math.min(screenMaxDimension / video.videoWidth, screenMaxDimension / video.videoHeight, 1);
+          canvas.width = video.videoWidth * ratio;
+          canvas.height = video.videoHeight * ratio;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          const base64Data = canvas.toDataURL('image/jpeg', screenQuality).split(',')[1];
+          sessionRef.current.sendRealtimeInput({
+            video: { data: base64Data, mimeType: 'image/jpeg' }
+          });
+          addLog('info', `Desktop frame sent: ${Math.round(base64Data.length / 1024)} KB`);
+        }
+      }, 2000);
+
+      stream.getVideoTracks()[0].onended = () => stopDesktopCapture();
+      addLog('info', 'Desktop capture started');
+    } catch (err) {
+      addLog('error', 'Failed to start desktop capture', err);
+      setIsDesktopSharing(false);
+    }
+  };
+
+  const stopDesktopCapture = () => {
+    if (screenIntervalRef.current) {
+      clearInterval(screenIntervalRef.current);
+      screenIntervalRef.current = null;
+    }
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsDesktopSharing(false);
+    addLog('info', 'Desktop capture stopped');
+  };
+
+  const toggleDesktopShare = () => {
+    const newState = !isDesktopSharing;
+    setIsDesktopSharing(newState);
+    if (newState) {
+      startDesktopCapture();
+    } else {
+      stopDesktopCapture();
     }
   };
 
@@ -1415,7 +1483,7 @@ Identity Rules:
       <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
         <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group max-w-2xl self-center w-full">
           <AnimatePresence mode="wait">
-            {(isScreenSharing || isCameraOn) ? (
+            {(isScreenSharing || isCameraOn || isDesktopSharing) ? (
               <motion.div 
                 key="video"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -1442,7 +1510,7 @@ Identity Rules:
                         className="px-4 py-2 bg-[#22C9E8] rounded-2xl text-[#0D1117] text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-2xl flex items-center gap-2 max-w-max"
                     >
                         <div className="w-1.5 h-1.5 bg-[#0D1117] rounded-full animate-pulse" />
-                        {isScreenSharing ? "Broadcasting Tab" : "Broadcasting Webcam"}
+                        {isDesktopSharing ? "Broadcasting Desktop" : isScreenSharing ? "Broadcasting Tab" : "Broadcasting Webcam"}
                     </motion.div>
                     
                     {isMicOn && (
@@ -1525,18 +1593,32 @@ Identity Rules:
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
             </button>
 
-            <button 
+            <button
               onClick={toggleScreenShare}
               disabled={!isConnected}
               className={cn(
                 "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isScreenSharing 
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
+                isScreenSharing
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
                   : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
               )}
             >
               <Monitor size={24} className="md:w-8 md:h-8" />
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
+            </button>
+
+            <button
+              onClick={toggleDesktopShare}
+              disabled={!isConnected}
+              className={cn(
+                "w-20 h-20 md:w-24 md:h-24 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isDesktopSharing
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
+                  : "bg-[#E5E7EB] text-gray-900 border-transparent hover:bg-white hover:border-gray-300"
+              )}
+            >
+              <LayoutDashboard size={24} className="md:w-8 md:h-8" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
             </button>
           </div>
         </div>
