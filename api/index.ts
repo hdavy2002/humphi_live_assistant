@@ -398,7 +398,7 @@ app.get("/session/init", requireAuth, async (c) => {
 });
 
 app.post("/session/save", requireAuth, async (c) => {
-  const { userId, newHandle, transcript } = await c.req.json();
+  const { userId, newHandle, transcript, tokenUsage, cost, service, model } = await c.req.json();
   if (!userId) return c.json({ error: "Missing userId" }, 400);
 
   // Save the handle to Redis (fast, stays synchronous)
@@ -408,6 +408,39 @@ app.post("/session/save", requireAuth, async (c) => {
     }
   } catch (err) {
     console.error("Redis save failed:", err);
+  }
+
+  // ── Billing: Deduct usage cost from wallet ───────────────────
+  if (cost && cost > 0) {
+    try {
+      const walletUseCase = getWalletUseCase();
+      const profile = await walletUseCase.getProfile(userId);
+      if (profile) {
+        const newBalance = Math.max(0, (profile.walletBalance || 0) - cost);
+        const profileRepo = new DrizzleProfileRepository();
+        await profileRepo.updateBalance(userId, newBalance);
+
+        // Record transaction — resolve walletId from userId
+        try {
+          const transactionRepo = new DrizzleTransactionRepository();
+          await transactionRepo.create({
+            amount: -cost,
+            type: 'usage',
+            status: 'completed',
+            metadata: { userId, service: service || 'live', model: model || 'gemini', tokens: tokenUsage?.total || 0 },
+          });
+        } catch (txErr: any) {
+          console.error("[Billing] Transaction record failed (balance still deducted):", txErr.message);
+        }
+
+        // Invalidate cached profile
+        try { await invalidate(cacheKeys.profile(userId)); } catch (e) {}
+
+        console.log(`[Billing] Deducted $${cost.toFixed(6)} from user ${userId}. New balance: $${newBalance.toFixed(4)}`);
+      }
+    } catch (err: any) {
+      console.error("[Billing] Failed to deduct cost:", err.message);
+    }
   }
 
   // Offload Mem0 sync to Inngest — no longer blocking the response
