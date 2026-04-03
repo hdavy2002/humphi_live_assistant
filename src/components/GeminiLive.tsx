@@ -1482,10 +1482,10 @@ Identity Rules:
                   <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <Terminal size={32} className="text-[#22C9E8]/40 md:w-12 md:h-12" />
                 </div>
-                <h3 className="text-xl md:text-3xl font-bold text-[#FF6619] mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                <h3 className="text-xl md:text-3xl font-bold !text-[#FF6619] mb-4 tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
                   Start Your Live Experience
                 </h3>
-                <p className="text-white max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
+                <p className="!text-white max-w-xs md:max-w-md text-xs md:text-sm font-medium leading-relaxed mb-8">
                   Connect to Humphi Live to begin a real-time session with your AI assistant using voice and high-fidelity video context.
                 </p>
 
