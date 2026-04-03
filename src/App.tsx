@@ -59,7 +59,7 @@ function DashboardLayout() {
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard",        path: "/" },
     { icon: Monitor,         label: "Recordings",       path: "/records" },
-    { icon: Mic,             label: "Live Session",     path: "/recordings" },
+    { icon: Mic,             label: "Live Session",     path: "/live-session" },
     { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
     { icon: Wallet,          label: "Wallet",           path: "/wallet" },
     { icon: ScrollText,      label: "Logs",             path: "/logs" },
@@ -330,7 +330,7 @@ function Home() {
           </button>
           <button
             className="btn-cta"
-            onClick={() => navigate("/recordings")}
+            onClick={() => navigate("/live-session")}
           >
             <Mic size={15} />
             Start Session →
@@ -485,7 +485,7 @@ function Home() {
             cursor: "pointer",
             transition: "transform 0.2s, box-shadow 0.2s",
           }}
-          onClick={() => navigate("/recordings")}
+          onClick={() => navigate("/live-session")}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)";
             (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 48px rgba(255,102,25,0.45)";
@@ -539,7 +539,7 @@ function Home() {
       {/* ── Quick Actions ─────────────────────────────────── */}
       <div className="grid grid-quick grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
-          { icon: Zap,      label: "Start Live Session", onClick: () => navigate("/recordings"), variant: "cta" },
+          { icon: Zap,      label: "Start Live Session", onClick: () => navigate("/live-session"), variant: "cta" },
           { icon: History,  label: "Chat History",        onClick: () => navigate("/records"),    variant: "white" },
           { icon: PlugZap,  label: "Connectors",          onClick: () => navigate("/connectors"), variant: "white" },
           { icon: Settings, label: "Settings",            onClick: () => navigate("/profile"),    variant: "white" },
@@ -1024,7 +1024,7 @@ export default function App() {
             <Route path="/wallet"      element={<WalletPage />} />
             <Route path="/records"     element={<RecordsPage />} />
             <Route path="/profile"     element={<ProfilePage />} />
-            <Route path="/recordings"  element={<GeminiLive />} />
+            <Route path="/live-session" element={<GeminiLive />} />
             <Route path="/connectors"  element={<ConnectorsPage />} />
             <Route path="/logs"        element={<LogsPage />} />
             <Route path="*"            element={<Home />} />

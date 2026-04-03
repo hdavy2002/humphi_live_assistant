@@ -1503,16 +1503,18 @@ Identity Rules:
 
         {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
         <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
-          <div className="p-2 bg-[#1A2232] rounded-[32px] md:rounded-[40px] border-4 border-black/40 shadow-2xl flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+          <div className="p-3 bg-[#1A2232] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-2xl flex items-center gap-3 overflow-x-auto no-scrollbar max-w-full">
             <button 
               onClick={toggleMic}
               disabled={!isConnected && !isConnecting}
               className={cn(
-                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
-                isMicOn ? "bg-[#22C9E8] text-[#0D1117] shadow-xl shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isMicOn 
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
+                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
               )}
             >
-              {isMicOn ? <Mic size={20} className="md:w-6 md:h-6" /> : <MicOff size={20} className="md:w-6 md:h-6" />}
+              {isMicOn ? <Mic size={24} className="md:w-8 md:h-8" /> : <MicOff size={24} className="md:w-8 md:h-8" />}
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Mic</span>
             </button>
 
@@ -1520,11 +1522,13 @@ Identity Rules:
               onClick={toggleCamera}
               disabled={!isConnected}
               className={cn(
-                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
-                isCameraOn ? "bg-[#FF6619] text-white shadow-xl shadow-[#FF6619]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isCameraOn 
+                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20" 
+                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
               )}
             >
-              <Video size={20} className="md:w-6 md:h-6" />
+              <Video size={24} className="md:w-8 md:h-8" />
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Cam</span>
             </button>
 
@@ -1532,11 +1536,13 @@ Identity Rules:
               onClick={toggleScreenShare}
               disabled={!isConnected}
               className={cn(
-                "px-6 md:px-10 py-4 md:py-6 rounded-[24px] md:rounded-[32px] flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0",
-                isScreenSharing ? "bg-[#22C9E8] text-[#0D1117] shadow-xl shadow-[#22C9E8]/20" : "bg-white/5 text-white/40 hover:bg-white/10"
+                "w-24 h-24 md:w-32 md:h-32 rounded-[28px] md:rounded-[36px] flex flex-col items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isScreenSharing 
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20" 
+                  : "bg-white/5 text-white/40 border-transparent hover:bg-white/10 hover:border-white/10"
               )}
             >
-              <Monitor size={20} className="md:w-6 md:h-6" />
+              <Monitor size={24} className="md:w-8 md:h-8" />
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Tab</span>
             </button>
           </div>
