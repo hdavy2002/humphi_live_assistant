@@ -1413,7 +1413,7 @@ Identity Rules:
 
       {/* ── Area 1: Responsive Stream Container ───────────────────────── */}
       <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
-        <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group">
+        <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group max-w-2xl self-center w-full">
           <AnimatePresence mode="wait">
             {(isScreenSharing || isCameraOn) ? (
               <motion.div 
