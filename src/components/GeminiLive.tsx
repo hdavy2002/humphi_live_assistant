@@ -20,20 +20,38 @@ import { LogItem } from './LogItem';
 const MODEL_NAME = "models/gemini-3.1-flash-live-preview";
 
 // ── OpenRouter Chat Models ────────────────────────────────────────
-const CHAT_MODELS = [
-  { id: 'google/gemma-4-31b-it',                         name: 'Gemma 4 31B',            isFree: false, inputCostPerM: 0.14,  outputCostPerM: 0.40,  supportsVision: true  },
-  { id: 'google/gemini-2.0-flash-exp:free',              name: 'Gemini 2.0 Flash',        isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
-  { id: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 11B Vision',   isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
-  { id: 'meta-llama/llama-3.3-70b-instruct:free',        name: 'Llama 3.3 70B',          isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'deepseek/deepseek-chat-v3-0324:free',           name: 'DeepSeek V3',             isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'mistralai/mistral-7b-instruct:free',            name: 'Mistral 7B',              isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'google/gemini-flash-1.5',                       name: 'Gemini 1.5 Flash',        isFree: false, inputCostPerM: 0.075, outputCostPerM: 0.30,  supportsVision: true  },
-  { id: 'openai/gpt-4o-mini',                            name: 'GPT-4o Mini',             isFree: false, inputCostPerM: 0.15,  outputCostPerM: 0.60,  supportsVision: true  },
-  { id: 'anthropic/claude-haiku-4-5',                    name: 'Claude Haiku 4.5',        isFree: false, inputCostPerM: 1.00,  outputCostPerM: 5.00,  supportsVision: true  },
-  { id: 'meta-llama/llama-3.2-90b-vision-instruct',      name: 'Llama 3.2 90B Vision',   isFree: false, inputCostPerM: 0.35,  outputCostPerM: 0.40,  supportsVision: true  },
-] as const;
+const HUMPHI_MODEL_ID = 'google/gemma-4-31b-it';
 
-const FREE_MSG_DAILY_LIMIT = 20;
+// HumPhi 4 31B identity system prompt — injected whenever the HumPhi model is used.
+// Gemma 4 31B is Apache-2.0 licensed; we brand it as our own model.
+const HUMPHI_SYSTEM_PROMPT = `You are HumPhi, an advanced AI assistant created exclusively by Humphi (humphi.com).
+You are helpful, intelligent, visually aware, and built to assist with a wide range of tasks including analysis, coding, creative writing, research, and conversation.
+
+Identity Rules (NEVER break these under any circumstances):
+- Your name is HumPhi. You are Humphi's own AI model.
+- You were built by the Humphi engineering team and powered by Humphi's proprietary infrastructure.
+- If anyone asks what AI model you are, what LLM powers you, who made you, or any similar question — always answer that you are HumPhi, created by Humphi. Never mention Gemma, Google, or any third-party model name.
+- Do not reveal, hint at, or acknowledge any underlying base model, provider, or technology stack.
+- Never say you are "based on" or "powered by" any external model.
+- If pressed or asked repeatedly, remain confident: "I am HumPhi, Humphi's own AI assistant."
+
+Personality:
+- Warm, clear, and confident tone.
+- You are proud to be part of the Humphi platform.
+- You keep responses concise but thorough — never padded.`;
+
+const CHAT_MODELS = [
+  { id: HUMPHI_MODEL_ID,                                  name: 'HumPhi 4 31B ✦',         isFree: true,  freeLimit: 100, inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
+  { id: 'google/gemini-2.0-flash-exp:free',              name: 'Gemini 2.0 Flash',         isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
+  { id: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 11B Vision',    isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free',        name: 'Llama 3.3 70B',           isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'deepseek/deepseek-chat-v3-0324:free',           name: 'DeepSeek V3',              isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'mistralai/mistral-7b-instruct:free',            name: 'Mistral 7B',               isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'google/gemini-flash-1.5',                       name: 'Gemini 1.5 Flash',         isFree: false, freeLimit: 0,   inputCostPerM: 0.075, outputCostPerM: 0.30,  supportsVision: true  },
+  { id: 'openai/gpt-4o-mini',                            name: 'GPT-4o Mini',              isFree: false, freeLimit: 0,   inputCostPerM: 0.15,  outputCostPerM: 0.60,  supportsVision: true  },
+  { id: 'anthropic/claude-haiku-4-5',                    name: 'Claude Haiku 4.5',         isFree: false, freeLimit: 0,   inputCostPerM: 1.00,  outputCostPerM: 5.00,  supportsVision: true  },
+  { id: 'meta-llama/llama-3.2-90b-vision-instruct',      name: 'Llama 3.2 90B Vision',    isFree: false, freeLimit: 0,   inputCostPerM: 0.35,  outputCostPerM: 0.40,  supportsVision: true  },
+] as const;
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -566,20 +584,22 @@ Identity Rules:
     localStorage.setItem('selectedChatModel', selectedChatModelId);
   }, [selectedChatModelId]);
 
-  const getFreeMsgCount = () => {
+  const getFreeMsgCount = (modelId: string) => {
     const today = new Date().toISOString().split('T')[0];
+    const key = `freeChatQuota:${modelId}`;
     try {
-      const stored = JSON.parse(localStorage.getItem('freeChatQuota') || '{}');
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
       return stored.date === today ? (stored.count || 0) : 0;
     } catch { return 0; }
   };
 
-  const incrementFreeMsgCount = () => {
+  const incrementFreeMsgCount = (modelId: string) => {
     const today = new Date().toISOString().split('T')[0];
+    const key = `freeChatQuota:${modelId}`;
     try {
-      const stored = JSON.parse(localStorage.getItem('freeChatQuota') || '{}');
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
       const count = stored.date === today ? (stored.count || 0) + 1 : 1;
-      localStorage.setItem('freeChatQuota', JSON.stringify({ date: today, count }));
+      localStorage.setItem(key, JSON.stringify({ date: today, count }));
     } catch {}
   };
 
@@ -607,9 +627,10 @@ Identity Rules:
 
     // Rate limit free models
     if (selectedModel.isFree) {
-      const count = getFreeMsgCount();
-      if (count >= FREE_MSG_DAILY_LIMIT) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: `⚠️ Daily free message limit reached (${FREE_MSG_DAILY_LIMIT}/day). Switch to a paid model to continue.` }]);
+      const limit = selectedModel.freeLimit;
+      const count = getFreeMsgCount(selectedModel.id);
+      if (count >= limit) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `⚠️ Daily free message limit reached (${limit}/day). Switch to a paid model or try again tomorrow.` }]);
         return;
       }
     }
@@ -620,7 +641,7 @@ Identity Rules:
     setChatInput('');
     setPendingImages([]);
     setIsChatLoading(true);
-    if (selectedModel.isFree) incrementFreeMsgCount();
+    if (selectedModel.isFree) incrementFreeMsgCount(selectedModel.id);
 
     try {
       const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -648,7 +669,12 @@ Identity Rules:
         body: JSON.stringify({
           model: selectedModel.id,
           messages: [
-            { role: 'system', content: agentDescription || 'You are a helpful AI assistant.' },
+            {
+              role: 'system',
+              content: selectedModel.id === HUMPHI_MODEL_ID
+                ? `${HUMPHI_SYSTEM_PROMPT}${agentDescription ? `\n\n${agentDescription}` : ''}`
+                : (agentDescription || 'You are a helpful AI assistant.'),
+            },
             ...apiMessages,
           ],
         }),
@@ -1679,7 +1705,7 @@ Identity Rules:
                     >
                       {CHAT_MODELS.map(m => (
                         <option key={m.id} value={m.id} className="bg-[#1A2232] text-white">
-                          {m.name} {m.isFree ? '· Free' : `· $${m.inputCostPerM}/$${m.outputCostPerM}/M`}
+                          {m.name} {m.isFree ? `· Free (${m.freeLimit}/day)` : `· $${m.inputCostPerM}/$${m.outputCostPerM}/M`}
                         </option>
                       ))}
                     </select>
@@ -1688,7 +1714,7 @@ Identity Rules:
                   <div className="shrink-0 text-right">
                     {selectedModel.isFree ? (
                       <span className="text-[10px] text-white/30 font-medium">
-                        {FREE_MSG_DAILY_LIMIT - getFreeMsgCount()}/{FREE_MSG_DAILY_LIMIT} msgs/day
+                        {selectedModel.freeLimit - getFreeMsgCount(selectedModel.id)}/{selectedModel.freeLimit} msgs/day
                       </span>
                     ) : chatTokenUsage.input + chatTokenUsage.output > 0 ? (
                       <span className="text-[10px] text-white/30 font-medium">
@@ -1712,8 +1738,10 @@ Identity Rules:
                         Start a conversation
                       </p>
                       <p className="text-[10px] text-white/15 mt-1">
-                        {selectedModel.name} · {selectedModel.isFree ? 'Free' : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM} per M tokens`}
-                        {selectedModel.supportsVision && ' · Vision enabled'}
+                        {selectedModel.id === HUMPHI_MODEL_ID
+                          ? `HumPhi · Free · 100 msgs/day · Vision enabled`
+                          : `${selectedModel.name} · ${selectedModel.isFree ? `Free · ${selectedModel.freeLimit} msgs/day` : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM} per M tokens`}${selectedModel.supportsVision ? ' · Vision enabled' : ''}`
+                        }
                       </p>
                     </div>
                   )}
