@@ -674,7 +674,7 @@ app.get("/usage/logs", requireAuth, async (c) => {
       ORDER BY t.created_at DESC
       LIMIT 200
     `);
-    return c.json(rows);
+    return c.json(Array.isArray(rows) ? rows : (rows as any).rows ?? []);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }

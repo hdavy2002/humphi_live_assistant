@@ -75,7 +75,10 @@ const LogsPage: React.FC = () => {
       const res = await fetch(`/api/usage/logs?userId=${user!.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setLogs(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(Array.isArray(data) ? data : (data?.rows ?? []));
+      }
     } catch {}
     setLoading(false);
   };
