@@ -1,231 +1,321 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-  ScrollText, Terminal, Search, Filter, Trash2, 
-  Download, Copy, Check, LayoutPanelTop, Activity,
-  AlertTriangle, CheckCircle2, Cpu, Zap
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Mic, MessageSquare, Zap, DollarSign, Hash,
+  ArrowDownLeft, Calendar, ChevronDown, Loader2,
+  TrendingUp, Wallet, Activity,
 } from 'lucide-react';
-import { useLogs } from '../contexts/LogContext';
-import { LogItem } from './LogItem';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { cn } from '../lib/utils';
 
+// ── Types ───────────────────────────────────────────────────────────
+interface UsageLog {
+  id: string;
+  amount: string;
+  type: string;
+  status: string;
+  metadata: {
+    service?: string;
+    model?: string;
+    tokens?: { input?: number; output?: number; total?: number };
+    inputTokens?: number;
+    outputTokens?: number;
+    userId?: string;
+  } | null;
+  created_at: string;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function parseTokens(meta: UsageLog['metadata']) {
+  if (!meta) return { input: 0, output: 0, total: 0 };
+  const input  = meta.inputTokens  ?? meta.tokens?.input  ?? 0;
+  const output = meta.outputTokens ?? meta.tokens?.output ?? 0;
+  const total  = meta.tokens?.total ?? (input + output);
+  return { input, output, total };
+}
+
+function friendlyModel(model?: string): string {
+  if (!model) return 'Gemini Live';
+  if (model.includes('claude-opus-4-6') || model.includes('claude-opus')) return 'HumPhi 4 31B ✦';
+  if (model.includes('gemini-3.1-flash-live') || model.includes('gemini')) return 'Gemini Live';
+  if (model.includes('gemma')) return 'HumPhi 4 31B ✦';
+  return model.split('/').pop()?.replace(/-/g, ' ') || model;
+}
+
+function friendlyService(meta: UsageLog['metadata']): 'live' | 'chat' {
+  return meta?.service === 'chat' ? 'chat' : 'live';
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+// ── Main component ──────────────────────────────────────────────────
 const LogsPage: React.FC = () => {
-  const { logs, clearLogs } = useLogs();
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<string>('all');
-  const [copied, setCopied] = useState(false);
-  const [autoScroll, setAutoScroll] = useState(true);
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const { user }      = useUser();
+  const { getToken }  = useAuth();
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const matchSearch = log.message.toLowerCase().includes(search.toLowerCase()) || 
-                          (log.details && JSON.stringify(log.details).toLowerCase().includes(search.toLowerCase()));
-      const matchFilter = filter === 'all' || log.type === filter;
-      return matchSearch && matchFilter;
-    });
-  }, [logs, search, filter]);
-
-  const stats = useMemo(() => ({
-    total: logs.length,
-    errors: logs.filter(l => l.type === 'error').length,
-    warnings: logs.filter(l => l.type === 'warning').length,
-    success: logs.filter(l => l.type === 'received' || l.type === 'info').length,
-  }), [logs]);
+  const [logs, setLogs]       = useState<UsageLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter]   = useState<'all' | 'live' | 'chat'>('all');
 
   useEffect(() => {
-    if (autoScroll) {
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [filteredLogs, autoScroll]);
+    if (!user?.id) return;
+    fetchLogs();
+  }, [user?.id]);
 
-  const copyToClipboard = () => {
-    const text = logs.map(l => `[${l.timestamp.toISOString()}] ${l.type.toUpperCase()}: ${l.message}`).join('\n');
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`/api/usage/logs?userId=${user!.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setLogs(await res.json());
+    } catch {}
+    setLoading(false);
   };
 
-  const downloadLogs = () => {
-    const text = logs.map(l => `[${l.timestamp.toISOString()}] ${l.type.toUpperCase()}: ${l.message}`).join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `humphi-logs-${new Date().toISOString()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const filtered = useMemo(() =>
+    filter === 'all' ? logs : logs.filter(l => friendlyService(l.metadata) === filter),
+    [logs, filter]
+  );
+
+  // ── Summary stats ──────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const totalCost   = logs.reduce((s, l) => s + Math.abs(parseFloat(l.amount || '0')), 0);
+    const totalTokens = logs.reduce((s, l) => s + parseTokens(l.metadata).total, 0);
+    const liveSessions = logs.filter(l => friendlyService(l.metadata) === 'live').length;
+    const chatSessions = logs.filter(l => friendlyService(l.metadata) === 'chat').length;
+    return { totalCost, totalTokens, liveSessions, chatSessions, sessions: logs.length };
+  }, [logs]);
 
   return (
-    <div className="p-6 lg:p-10 min-h-full flex flex-col gap-8">
-      {/* Header Area */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-white/10 rounded-xl border border-white/10 shadow-xl backdrop-blur-md">
-              <Terminal className="text-cyan-400" size={24} />
-            </div>
-            <h1 className="text-3xl font-bold text-[#0D1117] tracking-tight" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-              System <span className="text-[#FF6619]">Operations</span>
-            </h1>
-          </div>
-          <p className="text-[#0D1117]/60 font-bold ml-1">Real-time infrastructure and AI heartbeat monitor.</p>
-        </div>
+    <div className="p-5 lg:p-8 min-h-full flex flex-col gap-6" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
 
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={downloadLogs}
-            className="btn-primary"
-          >
-            <Download size={16} />
-            Export
-          </button>
-          <button 
-            onClick={copyToClipboard}
-            className="btn-cta"
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? 'Copied' : 'Copy All'}
-          </button>
-        </div>
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <header>
+        <h1 className="text-2xl md:text-3xl font-black text-[#0D1117] tracking-tight mb-1">
+          Usage <span style={{ color: '#FF6619' }}>History</span>
+        </h1>
+        <p className="text-sm font-semibold text-[#0D1117]/50">
+          Every session with Humphi AI — tokens used, cost charged, time and date.
+        </p>
       </header>
 
-      {/* Stats Dashboard */}
+      {/* ── Summary cards ───────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Events', value: stats.total, icon: Activity, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-          { label: 'Critical Errors', value: stats.errors, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-400/10' },
-          { label: 'System Health', value: stats.total > 0 ? `${Math.round(((stats.total - stats.errors) / stats.total) * 100)}%` : '100%', icon: Cpu, color: 'text-green-400', bg: 'bg-green-400/10' },
-          { label: 'Active Tasks', value: stats.success, icon: Zap, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-        ].map((stat, i) => (
+          {
+            label: 'Total Sessions',
+            value: stats.sessions.toString(),
+            icon: Activity,
+            bg: '#0D1117',
+            color: '#22C9E8',
+            textColor: '#ffffff',
+          },
+          {
+            label: 'Total Tokens Used',
+            value: stats.totalTokens > 0 ? stats.totalTokens.toLocaleString() : '0',
+            icon: Hash,
+            bg: '#ffffff',
+            color: '#22C9E8',
+            textColor: '#0D1117',
+          },
+          {
+            label: 'Total Spent',
+            value: `$${stats.totalCost.toFixed(4)}`,
+            icon: DollarSign,
+            bg: '#FF6619',
+            color: '#ffffff',
+            textColor: '#ffffff',
+          },
+          {
+            label: 'Live / Chat',
+            value: `${stats.liveSessions} / ${stats.chatSessions}`,
+            icon: Zap,
+            bg: '#ffffff',
+            color: '#FF6619',
+            textColor: '#0D1117',
+          },
+        ].map((card, i) => (
           <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
+            key={card.label}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-5 bg-[#0D1117] border-2 border-black/20 rounded-[24px] shadow-xl relative overflow-hidden group"
+            transition={{ delay: i * 0.07 }}
+            className="rounded-2xl p-5 shadow-lg"
+            style={{ background: card.bg, border: card.bg === '#ffffff' ? '2px solid rgba(0,0,0,0.06)' : 'none' }}
           >
-            <div className={cn("absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity", stat.color)}>
-              <stat.icon size={48} />
-            </div>
             <div className="flex items-center gap-2 mb-3">
-              <div className={cn("p-1.5 rounded-lg", stat.bg)}>
-                <stat.icon size={16} className={stat.color} />
+              <div className="p-1.5 rounded-lg" style={{ background: `${card.color}20` }}>
+                <card.icon size={15} style={{ color: card.color }} />
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{stat.label}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: card.bg === '#0D1117' || card.bg === '#FF6619' ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.4)' }}>
+                {card.label}
+              </span>
             </div>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
+            <div className="text-2xl font-black" style={{ color: card.textColor }}>{card.value}</div>
           </motion.div>
         ))}
       </div>
 
-      {/* Main Log Viewer */}
-      <div className="flex-1 min-h-[500px] bg-[#0D1117] border-2 border-black/20 rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
+      {/* ── Log table ───────────────────────────────────────────── */}
+      <div className="flex-1 rounded-2xl shadow-xl overflow-hidden" style={{ background: '#ffffff', border: '2px solid rgba(0,0,0,0.06)' }}>
+
         {/* Toolbar */}
-        <div className="p-4 border-b border-black/20 flex flex-col sm:flex-row items-center gap-4 bg-[#1A2232]">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search session logs..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-[#0D1117] border border-black/20 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#22C9E8]/50 transition-colors font-bold"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2 bg-black/20 p-1 rounded-xl border border-white/5 shadow-inner">
-            {['all', 'info', 'sent', 'received', 'error'].map((f) => (
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+          <h2 className="text-sm font-black text-[#0D1117]">Session Log</h2>
+          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#F1F5F9' }}>
+            {(['all', 'live', 'chat'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                  filter === f 
-                    ? "bg-white/10 text-white shadow-xl" 
-                    : "text-white/20 hover:text-white/40"
-                )}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all"
+                style={{
+                  background: filter === f ? '#FF6619' : 'transparent',
+                  color:      filter === f ? '#ffffff'  : 'rgba(0,0,0,0.4)',
+                }}
               >
                 {f}
               </button>
             ))}
           </div>
-
-          <button 
-            onClick={clearLogs}
-            className="p-2.5 text-white/20 hover:text-red-400 transition-colors tooltip"
-            title="Clear All Logs"
-          >
-            <Trash2 size={18} />
-          </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar scroll-smooth">
-          <AnimatePresence mode="popLayout">
-            {filteredLogs.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="h-full flex flex-col items-center justify-center text-white/20 gap-4"
-              >
-                <div className="p-6 bg-white/5 rounded-full border border-white/5">
-                  <ScrollText size={48} strokeWidth={1} />
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-sm tracking-wide">NO LOG ENTRIES FOUND</p>
-                  <p className="text-xs opacity-50 mt-1">Start a live session to see real-time data.</p>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="flex flex-col">
-                {filteredLogs.map((log) => (
-                  <motion.div
-                    key={log.id}
-                    layout
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                  >
-                    <LogItem log={log} />
-                  </motion.div>
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            )}
-          </AnimatePresence>
+        {/* Column headers */}
+        <div className="grid px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest"
+          style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 90px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
+          <span>Session</span>
+          <span className="text-center">Date &amp; Time</span>
+          <span className="text-right">Input</span>
+          <span className="text-right">Output</span>
+          <span className="text-right">Total tok</span>
+          <span className="text-right">Cost</span>
         </div>
 
-        {/* Footer info */}
-        <div className="px-6 py-3 border-t border-white/5 bg-black/20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Capture Active</span>
+        {/* Rows */}
+        <div className="divide-y" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-3" style={{ color: 'rgba(0,0,0,0.3)' }}>
+              <Loader2 size={20} className="animate-spin" />
+              <span className="text-sm font-semibold">Loading usage history…</span>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={autoScroll} 
-                onChange={(e) => setAutoScroll(e.target.checked)}
-                className="sr-only"
-              />
-              <div className={cn(
-                "w-7 h-4 rounded-full transition-colors relative",
-                autoScroll ? "bg-cyan-500" : "bg-white/10"
-              )}>
-                <div className={cn(
-                  "absolute top-1 left-1 w-2 h-2 rounded-full bg-white transition-transform",
-                  autoScroll ? "translate-x-3" : "translate-x-0"
-                )} />
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#F1F5F9' }}>
+                <Activity size={24} style={{ color: 'rgba(0,0,0,0.2)' }} />
               </div>
-              <span className="text-[10px] font-bold text-white/20 group-hover:text-white/40 uppercase tracking-widest transition-colors">Autoscroll</span>
-            </label>
-          </div>
-          <span className="text-[10px] font-medium text-white/10 italic">
-            Buffer: {logs.length} / 1000 items
-          </span>
+              <div className="text-center">
+                <p className="text-sm font-bold text-[#0D1117]/50">No usage recorded yet</p>
+                <p className="text-xs mt-1" style={{ color: 'rgba(0,0,0,0.3)' }}>
+                  Start a Live Session or Chat to see your usage here.
+                </p>
+              </div>
+            </div>
+          ) : (
+            filtered.map((log, i) => {
+              const tokens  = parseTokens(log.metadata);
+              const svc     = friendlyService(log.metadata);
+              const model   = friendlyModel(log.metadata?.model);
+              const cost    = Math.abs(parseFloat(log.amount || '0'));
+              const { date, time } = formatDate(log.created_at);
+
+              return (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                  className="grid items-center px-5 py-3.5 hover:bg-black/[0.02] transition-colors"
+                  style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 90px' }}
+                >
+                  {/* Service + model */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: svc === 'live' ? 'rgba(255,102,25,0.12)' : 'rgba(34,201,232,0.12)' }}
+                    >
+                      {svc === 'live'
+                        ? <Mic size={14} style={{ color: '#FF6619' }} />
+                        : <MessageSquare size={14} style={{ color: '#22C9E8' }} />
+                      }
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-[#0D1117] truncate">{model}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+                          style={{
+                            background: svc === 'live' ? 'rgba(255,102,25,0.1)' : 'rgba(34,201,232,0.1)',
+                            color:      svc === 'live' ? '#FF6619' : '#0AABCA',
+                          }}
+                        >
+                          {svc === 'live' ? 'Live Session' : 'Chat'}
+                        </span>
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+                          style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
+                        >
+                          {log.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-[#0D1117]">{date}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(0,0,0,0.35)' }}>{time}</p>
+                  </div>
+
+                  {/* Input tokens */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-[#0D1117]">{tokens.input > 0 ? tokens.input.toLocaleString() : '—'}</span>
+                  </div>
+
+                  {/* Output tokens */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-[#0D1117]">{tokens.output > 0 ? tokens.output.toLocaleString() : '—'}</span>
+                  </div>
+
+                  {/* Total tokens */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold" style={{ color: '#22C9E8' }}>
+                      {tokens.total > 0 ? tokens.total.toLocaleString() : '—'}
+                    </span>
+                  </div>
+
+                  {/* Cost */}
+                  <div className="text-right">
+                    <span
+                      className="text-sm font-black"
+                      style={{ color: cost > 0 ? '#FF6619' : 'rgba(0,0,0,0.25)' }}
+                    >
+                      {cost > 0 ? `-$${cost.toFixed(4)}` : '$0.00'}
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
+
+        {/* Footer */}
+        {!loading && filtered.length > 0 && (
+          <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', background: '#FAFAFA' }}>
+            <span className="text-[11px] font-semibold" style={{ color: 'rgba(0,0,0,0.35)' }}>
+              {filtered.length} session{filtered.length !== 1 ? 's' : ''} shown
+            </span>
+            <span className="text-[11px] font-black" style={{ color: '#FF6619' }}>
+              Total charged: ${stats.totalCost.toFixed(4)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

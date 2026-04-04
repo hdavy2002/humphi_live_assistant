@@ -650,6 +650,36 @@ app.delete("/chat/session/:id", requireAuth, async (c) => {
   } catch (err: any) { return c.json({ error: err.message }, 500); }
 });
 
+// GET /api/usage/logs — consumer usage history (usage transactions for a user)
+app.get("/usage/logs", requireAuth, async (c) => {
+  const userId = c.req.query("userId");
+  const auth   = getAuth(c);
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+  if (auth?.userId !== userId) return c.json({ error: "Forbidden" }, 403);
+
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        t.id,
+        t.amount,
+        t.type,
+        t.status,
+        t.metadata,
+        t.created_at
+      FROM transactions t
+      JOIN wallets w ON t.wallet_id = w.id
+      WHERE w.user_id = ${userId}
+        AND t.type = 'usage'
+        AND CAST(t.amount AS numeric) < 0
+      ORDER BY t.created_at DESC
+      LIMIT 200
+    `);
+    return c.json(rows);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 app.post("/session/save", requireAuth, async (c) => {
   const { userId, newHandle, transcript, tokenUsage, cost, service, model } = await c.req.json();
   if (!userId) return c.json({ error: "Missing userId" }, 400);
