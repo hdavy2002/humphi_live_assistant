@@ -944,7 +944,7 @@ Identity Rules:
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white overflow-hidden w-full mx-auto shadow-2xl relative selection:bg-[#22C9E8]/30" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+    <div className="flex flex-col h-screen text-white overflow-hidden w-full mx-auto relative selection:bg-[#22C9E8]/30" style={{ fontFamily: "'Comfortaa', sans-serif", background: '#22C9E8' }}>
       {/* ── Permissions Denied Modal ─────────────────────────────────── */}
       <AnimatePresence>
         {permissionState === 'denied' && (
