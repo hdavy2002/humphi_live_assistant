@@ -59,7 +59,7 @@ function DashboardLayout() {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard",        path: "/" },
-    { icon: MessageSquare,   label: "Chat",             path: "/chat" },
+    // { icon: MessageSquare,   label: "Chat",   path: "/chat" }, // disabled — WIP
     { icon: Monitor,         label: "Recordings",       path: "/records" },
     { icon: Mic,             label: "Live Session",     path: "/live-session" },
     { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
