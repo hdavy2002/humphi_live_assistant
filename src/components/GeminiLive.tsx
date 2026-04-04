@@ -563,9 +563,9 @@ Identity Rules:
       audioPlayerRef.current = null;
     }
 
-    if (messages.length > 0) {
-      saveSessionAndBill();
-    }
+    // Always bill when a session was active — voice-only sessions produce no
+    // text messages so messages.length is 0, but we still want to log the call.
+    saveSessionAndBill();
   };
 
   const startAudioCapture = async () => {
@@ -1577,12 +1577,12 @@ Identity Rules:
             className={cn(
               "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
               isMicOn
-                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/30"
+                : "bg-white text-[#0D1117] border-white shadow-md hover:bg-white/90"
             )}
           >
             {isMicOn ? <Mic size={18} className="md:w-5 md:h-5" /> : <MicOff size={18} className="md:w-5 md:h-5" />}
-            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Mic</span>
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
           </button>
 
           <button
@@ -1591,12 +1591,12 @@ Identity Rules:
             className={cn(
               "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
               isCameraOn
-                ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/20"
-                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+                ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/30"
+                : "bg-white text-[#FF6619] border-white shadow-md hover:bg-white/90"
             )}
           >
             <Video size={18} className="md:w-5 md:h-5" />
-            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Cam</span>
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
           </button>
 
           <button
@@ -1605,12 +1605,12 @@ Identity Rules:
             className={cn(
               "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
               isScreenSharing
-                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/30"
+                : "bg-white text-[#22C9E8] border-white shadow-md hover:bg-white/90"
             )}
           >
             <Monitor size={18} className="md:w-5 md:h-5" />
-            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Tab</span>
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
           </button>
 
           <button
@@ -1619,12 +1619,12 @@ Identity Rules:
             className={cn(
               "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
               isDesktopSharing
-                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+                ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/30"
+                : "bg-white text-[#FF6619] border-white shadow-md hover:bg-white/90"
             )}
           >
             <LayoutDashboard size={18} className="md:w-5 md:h-5" />
-            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Desktop</span>
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
           </button>
         </div>
       </main>

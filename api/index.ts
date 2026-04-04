@@ -670,7 +670,7 @@ app.get("/usage/logs", requireAuth, async (c) => {
       JOIN wallets w ON t.wallet_id = w.id
       WHERE w.user_id = ${userId}
         AND t.type = 'usage'
-        AND CAST(t.amount AS numeric) < 0
+        AND CAST(t.amount AS numeric) <= 0
       ORDER BY t.created_at DESC
       LIMIT 200
     `);
@@ -693,37 +693,48 @@ app.post("/session/save", requireAuth, async (c) => {
     console.error("Redis save failed:", err);
   }
 
-  // ── Billing: Deduct usage cost from wallet ───────────────────
-  if (cost && cost > 0) {
-    try {
-      const walletUseCase = getWalletUseCase();
-      const profile = await walletUseCase.getProfile(userId);
-      if (profile) {
+  // ── Billing: Deduct usage cost from wallet + always record the session ──
+  const sessionMeta = {
+    userId,
+    service: service || 'live',
+    model:   model   || 'gemini',
+    inputTokens:  tokenUsage?.input  || 0,
+    outputTokens: tokenUsage?.output || 0,
+    tokens: {
+      input:  tokenUsage?.input  || 0,
+      output: tokenUsage?.output || 0,
+      total:  tokenUsage?.total  || (tokenUsage?.input || 0) + (tokenUsage?.output || 0),
+    },
+  };
+
+  try {
+    const walletUseCase = getWalletUseCase();
+    const profile = await walletUseCase.getProfile(userId);
+    if (profile) {
+      // Deduct balance only if there is a real cost
+      if (cost && cost > 0) {
         const newBalance = Math.max(0, (profile.walletBalance || 0) - cost);
         const profileRepo = new DrizzleProfileRepository();
         await profileRepo.updateBalance(userId, newBalance);
-
-        // Record transaction — resolve walletId from userId
-        try {
-          const transactionRepo = new DrizzleTransactionRepository();
-          await transactionRepo.create({
-            amount: -cost,
-            type: 'usage',
-            status: 'completed',
-            metadata: { userId, service: service || 'live', model: model || 'gemini', tokens: tokenUsage?.total || 0 },
-          });
-        } catch (txErr: any) {
-          console.error("[Billing] Transaction record failed (balance still deducted):", txErr.message);
-        }
-
-        // Invalidate cached profile
         try { await invalidate(cacheKeys.profile(userId)); } catch (e) {}
-
         console.log(`[Billing] Deducted $${cost.toFixed(6)} from user ${userId}. New balance: $${newBalance.toFixed(4)}`);
       }
-    } catch (err: any) {
-      console.error("[Billing] Failed to deduct cost:", err.message);
+
+      // Always record the session transaction so it appears in Usage History
+      try {
+        const transactionRepo = new DrizzleTransactionRepository();
+        await transactionRepo.create({
+          amount: -(cost || 0),
+          type:   'usage',
+          status: 'completed',
+          metadata: sessionMeta,
+        });
+      } catch (txErr: any) {
+        console.error("[Billing] Transaction record failed:", txErr.message);
+      }
     }
+  } catch (err: any) {
+    console.error("[Billing] Failed:", err.message);
   }
 
   // Offload Mem0 sync to Inngest — no longer blocking the response
