@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText,
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
   MessageSquare, Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
-  Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History, LayoutDashboard
+  Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History, LayoutDashboard,
+  Paperclip
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { cn } from '../lib/utils';
@@ -17,6 +18,22 @@ import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
 const MODEL_NAME = "models/gemini-3.1-flash-live-preview";
+
+// ── OpenRouter Chat Models ────────────────────────────────────────
+const CHAT_MODELS = [
+  { id: 'google/gemma-4-31b-it',                         name: 'Gemma 4 31B',            isFree: false, inputCostPerM: 0.14,  outputCostPerM: 0.40,  supportsVision: true  },
+  { id: 'google/gemini-2.0-flash-exp:free',              name: 'Gemini 2.0 Flash',        isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
+  { id: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 11B Vision',   isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free',        name: 'Llama 3.3 70B',          isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'deepseek/deepseek-chat-v3-0324:free',           name: 'DeepSeek V3',             isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'mistralai/mistral-7b-instruct:free',            name: 'Mistral 7B',              isFree: true,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
+  { id: 'google/gemini-flash-1.5',                       name: 'Gemini 1.5 Flash',        isFree: false, inputCostPerM: 0.075, outputCostPerM: 0.30,  supportsVision: true  },
+  { id: 'openai/gpt-4o-mini',                            name: 'GPT-4o Mini',             isFree: false, inputCostPerM: 0.15,  outputCostPerM: 0.60,  supportsVision: true  },
+  { id: 'anthropic/claude-haiku-4-5',                    name: 'Claude Haiku 4.5',        isFree: false, inputCostPerM: 1.00,  outputCostPerM: 5.00,  supportsVision: true  },
+  { id: 'meta-llama/llama-3.2-90b-vision-instruct',      name: 'Llama 3.2 90B Vision',   isFree: false, inputCostPerM: 0.35,  outputCostPerM: 0.40,  supportsVision: true  },
+] as const;
+
+const FREE_MSG_DAILY_LIMIT = 20;
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -159,11 +176,14 @@ export default function GeminiLive() {
   const [isDesktopSharing, setIsDesktopSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isChatMode, setIsChatMode] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; images?: string[] }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatTokenUsage, setChatTokenUsage] = useState({ input: 0, output: 0 });
+  const [selectedChatModelId, setSelectedChatModelId] = useState<string>(() => localStorage.getItem('selectedChatModel') || 'google/gemma-4-31b-it');
+  const [pendingImages, setPendingImages] = useState<{ dataUrl: string; name: string }[]>([]);
   const chatEndScrollRef = useRef<HTMLDivElement>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
@@ -540,24 +560,82 @@ Identity Rules:
   };
 
   // ── OpenRouter Chat ─────────────────────────────────────────────
-  const OPENROUTER_MODEL = 'google/gemma-4-31b-it';
-  const OPENROUTER_INPUT_COST_PER_M = 0.25;  // $/M tokens charged to user
-  const OPENROUTER_OUTPUT_COST_PER_M = 0.80;
+  const selectedModel = CHAT_MODELS.find(m => m.id === selectedChatModelId) || CHAT_MODELS[0];
+
+  useEffect(() => {
+    localStorage.setItem('selectedChatModel', selectedChatModelId);
+  }, [selectedChatModelId]);
+
+  const getFreeMsgCount = () => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const stored = JSON.parse(localStorage.getItem('freeChatQuota') || '{}');
+      return stored.date === today ? (stored.count || 0) : 0;
+    } catch { return 0; }
+  };
+
+  const incrementFreeMsgCount = () => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const stored = JSON.parse(localStorage.getItem('freeChatQuota') || '{}');
+      const count = stored.date === today ? (stored.count || 0) + 1 : 1;
+      localStorage.setItem('freeChatQuota', JSON.stringify({ date: today, count }));
+    } catch {}
+  };
+
+  const handleChatFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !selectedModel.supportsVision) return;
+    const newImages: { dataUrl: string; name: string }[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > 10 * 1024 * 1024) { addLog('error', `${file.name} exceeds 10MB limit`); continue; }
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+      newImages.push({ dataUrl, name: file.name });
+    }
+    setPendingImages(prev => [...prev, ...newImages].slice(0, 4));
+    e.target.value = '';
+  };
 
   const sendChatMessage = async () => {
     const text = chatInput.trim();
-    if (!text || isChatLoading) return;
+    if ((!text && pendingImages.length === 0) || isChatLoading) return;
 
-    const userMsg = { role: 'user' as const, content: text };
+    // Rate limit free models
+    if (selectedModel.isFree) {
+      const count = getFreeMsgCount();
+      if (count >= FREE_MSG_DAILY_LIMIT) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `⚠️ Daily free message limit reached (${FREE_MSG_DAILY_LIMIT}/day). Switch to a paid model to continue.` }]);
+        return;
+      }
+    }
+
+    const userImages = [...pendingImages];
+    const userMsg = { role: 'user' as const, content: text, images: userImages.map(i => i.dataUrl) };
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
+    setPendingImages([]);
     setIsChatLoading(true);
+    if (selectedModel.isFree) incrementFreeMsgCount();
 
     try {
       const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
       if (!apiKey) throw new Error('OpenRouter API key not configured');
 
-      const allMessages = [...chatMessages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      const buildContent = (msg: typeof userMsg) => {
+        if (!msg.images?.length) return msg.content;
+        return [
+          ...(msg.content ? [{ type: 'text', text: msg.content }] : []),
+          ...msg.images.map(url => ({ type: 'image_url', image_url: { url } })),
+        ];
+      };
+
+      const historyWithCurrent = [...chatMessages, userMsg];
+      const apiMessages = historyWithCurrent.map(m => ({ role: m.role, content: buildContent(m as typeof userMsg) }));
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -568,10 +646,10 @@ Identity Rules:
           'X-Title': 'Humphi Live Assistant',
         },
         body: JSON.stringify({
-          model: OPENROUTER_MODEL,
+          model: selectedModel.id,
           messages: [
             { role: 'system', content: agentDescription || 'You are a helpful AI assistant.' },
-            ...allMessages,
+            ...apiMessages,
           ],
         }),
       });
@@ -585,28 +663,19 @@ Identity Rules:
       const assistantContent = data.choices?.[0]?.message?.content || '';
       setChatMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
 
-      // Track token usage for billing
-      if (data.usage) {
+      // Billing — only for paid models
+      if (data.usage && !selectedModel.isFree) {
         const newInput = (chatTokenUsage.input || 0) + (data.usage.prompt_tokens || 0);
         const newOutput = (chatTokenUsage.output || 0) + (data.usage.completion_tokens || 0);
         setChatTokenUsage({ input: newInput, output: newOutput });
-
-        // Bill user: deduct from wallet
-        const costUsd = (newInput / 1_000_000) * OPENROUTER_INPUT_COST_PER_M
-                      + (newOutput / 1_000_000) * OPENROUTER_OUTPUT_COST_PER_M;
-
+        const costUsd = (newInput / 1_000_000) * selectedModel.inputCostPerM
+                      + (newOutput / 1_000_000) * selectedModel.outputCostPerM;
         if (user?.id && costUsd > 0) {
           const token = await getToken();
           fetch('/api/session/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-              userId: user.id,
-              service: 'chat',
-              model: OPENROUTER_MODEL,
-              tokenUsage: { input: newInput, output: newOutput, total: newInput + newOutput },
-              cost: costUsd,
-            }),
+            body: JSON.stringify({ userId: user.id, service: 'chat', model: selectedModel.id, tokenUsage: { input: newInput, output: newOutput, total: newInput + newOutput }, cost: costUsd }),
           }).then(() => fetchProfile()).catch(console.error);
         }
       }
@@ -627,7 +696,6 @@ Identity Rules:
     if (isChatMode) {
       setIsChatMode(false);
     } else {
-      // Turn off video modes when entering chat
       if (isCameraOn) stopCameraCapture();
       if (isScreenSharing) stopScreenCapture();
       if (isDesktopSharing) stopDesktopCapture();
@@ -1600,51 +1668,81 @@ Identity Rules:
                 exit={{ opacity: 0, y: -20 }}
                 className="absolute inset-0 flex flex-col z-10"
               >
-                {/* Chat Header */}
-                <div className="shrink-0 px-6 py-3 border-b border-white/5 flex items-center justify-between bg-[#0D1117]/80 backdrop-blur-md">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare size={16} className="text-[#FFCC00]" />
-                    <span className="text-xs font-bold text-white/80 uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Chat</span>
-                    <span className="text-[10px] text-white/30 font-medium ml-2">{OPENROUTER_MODEL}</span>
+                {/* Chat Header: Model Dropdown + Stats */}
+                <div className="shrink-0 px-4 py-2 border-b border-white/5 flex items-center gap-3 bg-[#0D1117]/90 backdrop-blur-md">
+                  <div className="relative flex-1 min-w-0">
+                    <select
+                      value={selectedChatModelId}
+                      onChange={(e) => { setSelectedChatModelId(e.target.value); setChatTokenUsage({ input: 0, output: 0 }); }}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl py-1.5 pl-3 pr-7 text-[11px] font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30 truncate"
+                      style={{ fontFamily: "'Comfortaa', sans-serif" }}
+                    >
+                      {CHAT_MODELS.map(m => (
+                        <option key={m.id} value={m.id} className="bg-[#1A2232] text-white">
+                          {m.name} {m.isFree ? '· Free' : `· $${m.inputCostPerM}/$${m.outputCostPerM}/M`}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
                   </div>
-                  {chatTokenUsage.input + chatTokenUsage.output > 0 && (
-                    <span className="text-[10px] text-white/30 font-medium">
-                      {(chatTokenUsage.input + chatTokenUsage.output).toLocaleString()} tokens · ${(
-                        (chatTokenUsage.input / 1_000_000) * OPENROUTER_INPUT_COST_PER_M +
-                        (chatTokenUsage.output / 1_000_000) * OPENROUTER_OUTPUT_COST_PER_M
-                      ).toFixed(5)}
-                    </span>
-                  )}
+                  <div className="shrink-0 text-right">
+                    {selectedModel.isFree ? (
+                      <span className="text-[10px] text-white/30 font-medium">
+                        {FREE_MSG_DAILY_LIMIT - getFreeMsgCount()}/{FREE_MSG_DAILY_LIMIT} msgs/day
+                      </span>
+                    ) : chatTokenUsage.input + chatTokenUsage.output > 0 ? (
+                      <span className="text-[10px] text-white/30 font-medium">
+                        {(chatTokenUsage.input + chatTokenUsage.output).toLocaleString()} tok · ${(
+                          (chatTokenUsage.input / 1_000_000) * selectedModel.inputCostPerM +
+                          (chatTokenUsage.output / 1_000_000) * selectedModel.outputCostPerM
+                        ).toFixed(5)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-white/20 font-medium">${selectedModel.inputCostPerM}/${selectedModel.outputCostPerM}/M</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-3">
                   {chatMessages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-                      <MessageSquare size={40} className="text-white/10 mb-4" />
-                      <p className="text-sm text-white/40 font-medium" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <MessageSquare size={36} className="text-white/10 mb-3" />
+                      <p className="text-sm text-white/30 font-medium" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
                         Start a conversation
                       </p>
-                      <p className="text-xs text-white/20 mt-1">Free chat powered by {OPENROUTER_MODEL}</p>
+                      <p className="text-[10px] text-white/15 mt-1">
+                        {selectedModel.name} · {selectedModel.isFree ? 'Free' : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM} per M tokens`}
+                        {selectedModel.supportsVision && ' · Vision enabled'}
+                      </p>
                     </div>
                   )}
                   {chatMessages.map((msg, i) => (
-                    <div key={i} className={cn("flex", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                      <div className={cn(
-                        "max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
-                        msg.role === 'user'
-                          ? "bg-[#22C9E8]/20 text-white rounded-br-md"
-                          : "bg-white/5 text-white/90 rounded-bl-md border border-white/5"
-                      )} style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                        <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&>p]:!text-inherit [&>p]:!m-0 [&>ul]:!text-inherit [&>ol]:!text-inherit [&>li]:!text-inherit">
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
+                    <div key={i} className={cn("flex flex-col gap-1.5", msg.role === 'user' ? 'items-end' : 'items-start')}>
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="flex gap-2 flex-wrap justify-end">
+                          {msg.images.map((img, j) => (
+                            <img key={j} src={img} alt="" className="h-20 w-auto rounded-xl border border-white/10 object-cover max-w-[160px]" />
+                          ))}
+                        </div>
+                      )}
+                      {msg.content && (
+                        <div className={cn(
+                          "max-w-[82%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                          msg.role === 'user'
+                            ? "bg-[#22C9E8]/20 text-white rounded-br-sm"
+                            : "bg-white/5 text-white/90 rounded-bl-sm border border-white/5"
+                        )} style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                          <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&>p]:!text-inherit [&>p]:!m-0 [&>ul]:!text-inherit [&>ol]:!text-inherit [&>li]:!text-inherit">
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {isChatLoading && (
                     <div className="flex justify-start">
-                      <div className="px-4 py-3 bg-white/5 rounded-2xl rounded-bl-md border border-white/5">
+                      <div className="px-4 py-3 bg-white/5 rounded-2xl rounded-bl-sm border border-white/5">
                         <div className="flex gap-1.5">
                           <div className="w-2 h-2 bg-[#22C9E8]/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                           <div className="w-2 h-2 bg-[#22C9E8]/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -1657,26 +1755,64 @@ Identity Rules:
                 </div>
 
                 {/* Chat Input */}
-                <div className="shrink-0 px-4 md:px-6 py-3 border-t border-white/5 bg-[#0D1117]/80 backdrop-blur-md">
+                <div className="shrink-0 px-4 md:px-5 py-3 border-t border-white/5 bg-[#0D1117]/90 backdrop-blur-md">
+                  {/* Pending image previews */}
+                  {pendingImages.length > 0 && (
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {pendingImages.map((img, i) => (
+                        <div key={i} className="relative group">
+                          <img src={img.dataUrl} alt={img.name} className="h-14 w-auto rounded-xl border border-white/10 object-cover max-w-[100px]" />
+                          <button
+                            type="button"
+                            onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <form
                     onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
                     className="flex items-center gap-2"
                   >
+                    {selectedModel.supportsVision && (
+                      <>
+                        <input
+                          ref={chatFileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={handleChatFileUpload}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => chatFileInputRef.current?.click()}
+                          disabled={isChatLoading}
+                          title="Attach image (PNG, JPG, GIF, WEBP · max 10MB)"
+                          className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/10 disabled:opacity-30 transition-all shrink-0"
+                        >
+                          <Paperclip size={15} />
+                        </button>
+                      </>
+                    )}
                     <input
                       type="text"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#22C9E8]/30 transition-colors"
+                      placeholder="Message… (Enter to send)"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#22C9E8]/30 transition-colors"
                       style={{ fontFamily: "'Comfortaa', sans-serif" }}
                       disabled={isChatLoading}
                     />
                     <button
                       type="submit"
-                      disabled={!chatInput.trim() || isChatLoading}
-                      className="p-3 bg-[#FFCC00] text-black rounded-2xl hover:bg-[#FFD633] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+                      disabled={(!chatInput.trim() && pendingImages.length === 0) || isChatLoading}
+                      className="p-2.5 bg-[#FFCC00] text-black rounded-2xl hover:bg-[#FFD633] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0"
                     >
-                      <Send size={18} />
+                      <Send size={16} />
                     </button>
                   </form>
                 </div>
@@ -1760,76 +1896,76 @@ Identity Rules:
           </AnimatePresence>
         </div>
 
-        {/* ── Area 3: Large Responsive Control Tabs ────────────────────── */}
-        <div className="shrink-0 mt-4 md:mt-8 flex justify-center w-full">
-          <div className="p-2 md:p-3 bg-[#1A2232] rounded-[32px] md:rounded-[48px] border-4 border-black/40 shadow-2xl flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar max-w-full">
+        {/* ── Area 3: Control Tabs ─────────────────────────────────── */}
+        <div className="shrink-0 mt-3 md:mt-5 flex justify-center w-full">
+          <div className="p-1.5 md:p-2 bg-[#1A2232] rounded-[24px] md:rounded-[28px] border-4 border-black/40 shadow-2xl flex items-center gap-1.5 md:gap-2 overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={toggleMic}
               disabled={!isConnected && !isConnecting}
               className={cn(
-                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isMicOn
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
                   : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              {isMicOn ? <Mic size={20} className="md:w-8 md:h-8" /> : <MicOff size={20} className="md:w-8 md:h-8" />}
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
+              {isMicOn ? <Mic size={18} className="md:w-5 md:h-5" /> : <MicOff size={18} className="md:w-5 md:h-5" />}
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
             </button>
 
             <button
               onClick={toggleCamera}
               disabled={!isConnected}
               className={cn(
-                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isCameraOn
-                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-xl shadow-[#FF6619]/20"
+                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/20"
                   : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <Video size={20} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
+              <Video size={18} className="md:w-5 md:h-5" />
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
             </button>
 
             <button
               onClick={toggleScreenShare}
               disabled={!isConnected}
               className={cn(
-                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isScreenSharing
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
                   : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <Monitor size={20} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
+              <Monitor size={18} className="md:w-5 md:h-5" />
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
             </button>
 
             <button
               onClick={toggleDesktopShare}
               disabled={!isConnected}
               className={cn(
-                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
                 isDesktopSharing
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-xl shadow-[#22C9E8]/20"
+                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
                   : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <LayoutDashboard size={20} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
+              <LayoutDashboard size={18} className="md:w-5 md:h-5" />
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
             </button>
 
             <button
               onClick={toggleChatMode}
               className={cn(
-                "w-14 h-14 md:w-24 md:h-24 rounded-[18px] md:rounded-[36px] flex flex-col items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 shrink-0 border-2",
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 shrink-0 border-2",
                 isChatMode
-                  ? "bg-[#FFCC00] text-[#0D1117] border-[#FFCC00] shadow-xl shadow-[#FFCC00]/20"
+                  ? "bg-[#FFCC00] text-[#0D1117] border-[#FFCC00] shadow-lg shadow-[#FFCC00]/20"
                   : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
               )}
             >
-              <MessageSquare size={20} className="md:w-8 md:h-8" />
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Chat</span>
+              <MessageSquare size={18} className="md:w-5 md:h-5" />
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Chat</span>
             </button>
           </div>
         </div>
