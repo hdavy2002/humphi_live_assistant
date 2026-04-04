@@ -46,6 +46,12 @@ if (process.env.MEM0_API_KEY) {
   mem0 = new MemoryClient({ apiKey: process.env.MEM0_API_KEY });
 }
 
+// ── Gemini Live session helpers ───────────────────────────────────────────────
+const sessionCountKey = (uid: string) => `gemini:sessions:active:${uid}`;
+const sessionGrantKey = (gid: string) => `gemini:grant:${gid}`;
+const LIVE_INPUT_COST  = 0.000001;  // $1 / 1M input tokens
+const LIVE_OUTPUT_COST = 0.000004;  // $4 / 1M output tokens
+
 const app = new Hono().basePath("/api");
 
 // --- Global Auth Middleware ---
@@ -680,51 +686,147 @@ app.get("/usage/logs", requireAuth, async (c) => {
   }
 });
 
-app.post("/session/save", requireAuth, async (c) => {
-  const { userId, newHandle, transcript, tokenUsage, cost, service, model } = await c.req.json();
-  if (!userId) return c.json({ error: "Missing userId" }, 400);
+// ── POST /gemini/token — issue a short-lived ephemeral token for a Live session ──
+app.post("/gemini/token", requireAuth, async (c) => {
+  const userId = getAuth(c)!.userId!;
 
-  // Save the handle to Redis (fast, stays synchronous)
+  // Balance check — user must have funds before we issue a token
+  let profile: any;
+  try {
+    const walletUseCase = getWalletUseCase();
+    profile = await getOrSet(cacheKeys.profile(userId), () => walletUseCase.getProfile(userId));
+  } catch (err: any) {
+    return c.json({ error: "Failed to fetch profile" }, 500);
+  }
+  if (!profile || (profile.walletBalance ?? 0) < 0.01) {
+    return c.json({ error: "Insufficient balance" }, 402);
+  }
+
+  // Concurrent session gate via Redis INCR
+  if (redis) {
+    try {
+      const count = await redis.incr(sessionCountKey(userId));
+      if (count === 1) await redis.expire(sessionCountKey(userId), 35 * 60);
+      const max = parseInt(process.env.GEMINI_MAX_CONCURRENT_SESSIONS || '3');
+      if (count > max) {
+        await redis.decr(sessionCountKey(userId));
+        return c.json({ error: "Too many active sessions. Close an existing session first." }, 429);
+      }
+    } catch (redisErr) {
+      console.error("[GeminiToken] Redis session count failed:", redisErr);
+      // Fail open if Redis is unavailable
+    }
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    if (redis) await redis.decr(sessionCountKey(userId)).catch(() => {});
+    return c.json({ error: "Gemini API not configured" }, 500);
+  }
+
+  try {
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1alpha' } });
+    const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const tokenResponse = await (ai as any).authTokens.create({
+      config: { uses: 1, expireTime, newSessionExpireTime: expireTime },
+    });
+    if (!tokenResponse?.name) throw new Error("SDK returned empty token name");
+
+    const grantId = crypto.randomUUID();
+    if (redis) {
+      await redis.set(
+        sessionGrantKey(grantId),
+        JSON.stringify({ userId, grantId, issuedAt: Date.now(), billed: false }),
+        { ex: 35 * 60 }
+      );
+    }
+
+    console.log(`[GeminiToken] Issued grant ${grantId} for user ${userId}`);
+    return c.json({ ephemeralToken: tokenResponse.name, grantId, expiresIn: 1800 });
+
+  } catch (err: any) {
+    if (redis) await redis.decr(sessionCountKey(userId)).catch(() => {});
+    console.error("[GeminiToken] Token creation failed:", err);
+    return c.json({ error: err.message || "Failed to create session token" }, 500);
+  }
+});
+
+app.post("/session/save", requireAuth, async (c) => {
+  const serverUserId = getAuth(c)!.userId!;
+  const { userId, newHandle, transcript, tokenUsage, service, model, agentRole, agentName, grantId } = await c.req.json();
+
+  // Enforce server-authoritative userId from JWT — ignore client-supplied one
+  if (userId && userId !== serverUserId) return c.json({ error: "Forbidden" }, 403);
+  const billingUserId = serverUserId;
+
+  // Save handle to Redis
   try {
     if (redis && newHandle) {
-      await redis.set(`handle:${userId}`, newHandle, { ex: 7200 }); // 2 hours TTL
+      await redis.set(`handle:${billingUserId}`, newHandle, { ex: 7200 });
     }
   } catch (err) {
     console.error("Redis save failed:", err);
   }
 
-  // ── Billing: Deduct usage cost from wallet + always record the session ──
+  // ── Grant verification ─────────────────────────────────────────────────────
+  // Verify the session token grant to prevent billing manipulation.
+  // Sessions without a valid grant are recorded but charged $0.
+  let grantVerified = false;
+  if (redis && grantId) {
+    try {
+      const raw = await redis.get<string>(sessionGrantKey(grantId));
+      if (raw) {
+        const grant: any = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (grant.userId === billingUserId && !grant.billed) {
+          grantVerified = true;
+          await redis.set(sessionGrantKey(grantId), JSON.stringify({ ...grant, billed: true }), { ex: 300 });
+        }
+      }
+    } catch (e) {
+      console.error("[SessionSave] Grant lookup failed:", e);
+    }
+    // Always decrement the active session counter (even on failure)
+    await redis.decr(sessionCountKey(billingUserId)).catch(() => {});
+  }
+
+  // ── Server-authoritative cost ──────────────────────────────────────────────
+  // Never trust client-supplied cost. Recompute from tokenUsage after grant check.
+  const inputTokens  = grantVerified ? Math.min(tokenUsage?.input  || 0, 10_000_000) : 0;
+  const outputTokens = grantVerified ? Math.min(tokenUsage?.output || 0, 10_000_000) : 0;
+  const computedCost = (inputTokens * LIVE_INPUT_COST) + (outputTokens * LIVE_OUTPUT_COST);
+
   const sessionMeta = {
-    userId,
+    userId: billingUserId,
     service: service || 'live',
     model:   model   || 'gemini',
-    inputTokens:  tokenUsage?.input  || 0,
-    outputTokens: tokenUsage?.output || 0,
+    agentRole, agentName,
+    grantVerified,
+    inputTokens,
+    outputTokens,
     tokens: {
-      input:  tokenUsage?.input  || 0,
-      output: tokenUsage?.output || 0,
-      total:  tokenUsage?.total  || (tokenUsage?.input || 0) + (tokenUsage?.output || 0),
+      input:  inputTokens,
+      output: outputTokens,
+      total:  inputTokens + outputTokens,
     },
   };
 
   try {
     const walletUseCase = getWalletUseCase();
-    const profile = await walletUseCase.getProfile(userId);
+    const profile = await walletUseCase.getProfile(billingUserId);
     if (profile) {
-      // Deduct balance only if there is a real cost
-      if (cost && cost > 0) {
-        const newBalance = Math.max(0, (profile.walletBalance || 0) - cost);
+      if (computedCost > 0) {
+        const newBalance = Math.max(0, (profile.walletBalance || 0) - computedCost);
         const profileRepo = new DrizzleProfileRepository();
-        await profileRepo.updateBalance(userId, newBalance);
-        try { await invalidate(cacheKeys.profile(userId)); } catch (e) {}
-        console.log(`[Billing] Deducted $${cost.toFixed(6)} from user ${userId}. New balance: $${newBalance.toFixed(4)}`);
+        await profileRepo.updateBalance(billingUserId, newBalance);
+        try { await invalidate(cacheKeys.profile(billingUserId)); } catch (e) {}
+        console.log(`[Billing] Deducted $${computedCost.toFixed(6)} from ${billingUserId}. Balance: $${newBalance.toFixed(4)}`);
       }
 
-      // Always record the session transaction so it appears in Usage History
       try {
         const transactionRepo = new DrizzleTransactionRepository();
         await transactionRepo.create({
-          amount: -(cost || 0),
+          amount: -(computedCost || 0),
           type:   'usage',
           status: 'completed',
           metadata: sessionMeta,
@@ -737,12 +839,11 @@ app.post("/session/save", requireAuth, async (c) => {
     console.error("[Billing] Failed:", err.message);
   }
 
-  // Offload Mem0 sync to Inngest — no longer blocking the response
   if (transcript && transcript.trim().length > 0) {
     try {
       await inngest.send({
         name: "session/completed",
-        data: { userId, transcript },
+        data: { userId: billingUserId, transcript },
       });
     } catch (err) {
       console.error("[Inngest] Failed to dispatch session/completed event:", err);

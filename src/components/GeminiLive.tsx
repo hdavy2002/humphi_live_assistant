@@ -215,6 +215,7 @@ export default function GeminiLive() {
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [micVolume, setMicVolume] = useState(0);
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
+  const [currentGrantId, setCurrentGrantId] = useState<string | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("default");
@@ -305,6 +306,17 @@ Identity Rules:
     return () => {
       if (interval) clearInterval(interval);
     };
+  }, [isConnected]);
+
+  // Auto-reconnect before the 30-minute ephemeral token expires
+  useEffect(() => {
+    if (!isConnected) return;
+    const timer = setTimeout(() => {
+      addLog('warn', 'Session token nearing expiry — reconnecting for continuity...');
+      stopSession();
+      setTimeout(() => startSession(), 2000);
+    }, 28 * 60 * 1000);
+    return () => clearTimeout(timer);
   }, [isConnected]);
 
   const getDevices = async () => {
@@ -425,14 +437,40 @@ Identity Rules:
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error('[GeminiLive] API Key missing');
-        throw new Error("API Key NOT found in environment. Check .env.local or Vercel settings.");
+      // Fetch a short-lived ephemeral token from the backend.
+      // The real GEMINI_API_KEY never leaves the server.
+      let ephemeralToken: string;
+      let grantId: string;
+      const clerkToken = await getToken();
+      const tokenRes = await fetch('/api/gemini/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${clerkToken}`,
+        },
+      });
+      if (!tokenRes.ok) {
+        const body = await tokenRes.json().catch(() => ({}));
+        if (tokenRes.status === 402) {
+          addLog('error', 'Insufficient balance. Please top up your wallet.');
+          navigate('/wallet');
+          setIsConnecting(false);
+          return;
+        }
+        if (tokenRes.status === 429) {
+          addLog('error', (body as any).error || 'Too many active sessions. Close one first.');
+          setIsConnecting(false);
+          return;
+        }
+        throw new Error((body as any).error || `Token request failed: ${tokenRes.status}`);
       }
+      const tokenData = await tokenRes.json();
+      ephemeralToken = tokenData.ephemeralToken;
+      grantId = tokenData.grantId;
+      setCurrentGrantId(grantId);
 
-      console.log('[GeminiLive] Initializing GoogleGenAI...');
-      const ai = new GoogleGenAI({ apiKey });
+      console.log('[GeminiLive] Ephemeral token acquired, initializing GoogleGenAI...');
+      const ai = new GoogleGenAI({ apiKey: ephemeralToken, httpOptions: { apiVersion: 'v1alpha' } });
       audioPlayerRef.current = new AudioPlayer();
       audioPlayerRef.current.setMuted(isSpeakerMuted);
 
@@ -515,9 +553,9 @@ Identity Rules:
           tokenUsage,
           service: 'live',
           model: MODEL_NAME,
-          cost: (tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004),
           agentRole,
-          agentName
+          agentName,
+          grantId: currentGrantId,
         })
       });
 
@@ -546,6 +584,7 @@ Identity Rules:
     setIsCameraOn(false);
     
     clearTimers();
+    setCurrentGrantId(null);
 
     if (sessionRef.current) {
       try {
@@ -1613,19 +1652,21 @@ Identity Rules:
             <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
           </button>
 
-          <button
-            onClick={toggleDesktopShare}
-            disabled={!isConnected}
-            className={cn(
-              "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-              isDesktopSharing
-                ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/30"
-                : "bg-white text-[#FF6619] border-white shadow-md hover:bg-white/90"
-            )}
-          >
-            <LayoutDashboard size={18} className="md:w-5 md:h-5" />
-            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
-          </button>
+          {(window as any).__TAURI__ && (
+            <button
+              onClick={toggleDesktopShare}
+              disabled={!isConnected}
+              className={cn(
+                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+                isDesktopSharing
+                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/30"
+                  : "bg-white text-[#FF6619] border-white shadow-md hover:bg-white/90"
+              )}
+            >
+              <LayoutDashboard size={18} className="md:w-5 md:h-5" />
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
+            </button>
+          )}
         </div>
       </main>
 
