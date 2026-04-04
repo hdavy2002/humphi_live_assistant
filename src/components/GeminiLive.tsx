@@ -4,8 +4,9 @@ import {
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
   MessageSquare, Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
   Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History, LayoutDashboard,
-  Paperclip
+  Paperclip, Copy, Trash2, CornerUpRight, ClipboardCopy
 } from 'lucide-react';
+import { CHAT_STYLES, formatChatExport } from '../lib/chat-config';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { cn } from '../lib/utils';
 import { AudioRecorder, AudioPlayer } from '../lib/audio-utils';
@@ -1311,22 +1312,30 @@ Identity Rules:
           </button>
         </div>
 
-        {/* Desktop Metrics */}
-        <div className="hidden lg:flex items-center gap-8 px-6 py-1.5 rounded-full bg-[#1A2232] border-2 border-black/20">
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Tokens</span>
-            <span className="text-[13px] font-bold text-[#22C9E8] leading-none font-comfortaa">{tokenUsage.total.toLocaleString()}</span>
-          </div>
-          <div className="w-px h-5 bg-white/10" />
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Cost</span>
-            <span className="text-[13px] font-bold text-green-400 leading-none font-comfortaa">
-              ${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}
+        {/* Desktop Metrics — switches between Live and Chat stats */}
+        <div className="hidden lg:flex items-center gap-6 px-6 py-2 rounded-full bg-[#1A2232] border-2 border-black/20">
+          <div className="flex flex-col items-center min-w-[52px]">
+            <span className="text-[9px] text-white/60 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">
+              {isChatMode ? 'Chat Tok' : 'Tokens'}
+            </span>
+            <span className="text-[13px] font-bold text-[#22C9E8] leading-none font-comfortaa">
+              {isChatMode
+                ? (chatTokenUsage.input + chatTokenUsage.output).toLocaleString()
+                : tokenUsage.total.toLocaleString()}
             </span>
           </div>
-          <div className="w-px h-5 bg-white/10" />
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Wallet</span>
+          <div className="w-px h-5 bg-white/20" />
+          <div className="flex flex-col items-center min-w-[70px]">
+            <span className="text-[9px] text-white/60 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Cost</span>
+            <span className="text-[13px] font-bold text-green-400 leading-none font-comfortaa">
+              {isChatMode
+                ? `$${((chatTokenUsage.input / 1_000_000) * selectedModel.inputCostPerM + (chatTokenUsage.output / 1_000_000) * selectedModel.outputCostPerM).toFixed(5)}`
+                : `$${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}`}
+            </span>
+          </div>
+          <div className="w-px h-5 bg-white/20" />
+          <div className="flex flex-col items-center min-w-[52px]">
+            <span className="text-[9px] text-white/60 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Wallet</span>
             <span className="text-[13px] font-bold text-orange-400 leading-none font-comfortaa">
               ${profile?.wallet_balance?.toFixed(2) || '0.00'}
             </span>
@@ -1692,15 +1701,16 @@ Identity Rules:
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="absolute inset-0 flex flex-col z-10"
+                className="absolute inset-0 flex flex-col z-10 bg-[#080e1a]"
               >
-                {/* Chat Header: Model Dropdown + Stats */}
-                <div className="shrink-0 px-4 py-2 border-b border-white/5 flex items-center gap-3 bg-[#0D1117]/90 backdrop-blur-md">
+                {/* ── Chat Header ─────────────────────────────────────── */}
+                <div className={CHAT_STYLES.container.header}>
+                  {/* Model selector */}
                   <div className="relative flex-1 min-w-0">
                     <select
                       value={selectedChatModelId}
                       onChange={(e) => { setSelectedChatModelId(e.target.value); setChatTokenUsage({ input: 0, output: 0 }); }}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-1.5 pl-3 pr-7 text-[11px] font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/30 truncate"
+                      className="w-full bg-white/8 border border-white/15 rounded-xl py-1.5 pl-3 pr-7 text-[11px] font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/40 truncate"
                       style={{ fontFamily: "'Comfortaa', sans-serif" }}
                     >
                       {CHAT_MODELS.map(m => (
@@ -1709,72 +1719,118 @@ Identity Rules:
                         </option>
                       ))}
                     </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
                   </div>
+
+                  {/* Rate limit / token info */}
                   <div className="shrink-0 text-right">
                     {selectedModel.isFree ? (
-                      <span className="text-[10px] text-white/30 font-medium">
+                      <span className="text-[10px] text-white/50 font-medium">
                         {selectedModel.freeLimit - getFreeMsgCount(selectedModel.id)}/{selectedModel.freeLimit} msgs/day
                       </span>
                     ) : chatTokenUsage.input + chatTokenUsage.output > 0 ? (
-                      <span className="text-[10px] text-white/30 font-medium">
-                        {(chatTokenUsage.input + chatTokenUsage.output).toLocaleString()} tok · ${(
-                          (chatTokenUsage.input / 1_000_000) * selectedModel.inputCostPerM +
-                          (chatTokenUsage.output / 1_000_000) * selectedModel.outputCostPerM
-                        ).toFixed(5)}
+                      <span className="text-[10px] text-white/50 font-medium">
+                        {(chatTokenUsage.input + chatTokenUsage.output).toLocaleString()} tok
                       </span>
                     ) : (
-                      <span className="text-[10px] text-white/20 font-medium">${selectedModel.inputCostPerM}/${selectedModel.outputCostPerM}/M</span>
+                      <span className="text-[10px] text-white/30 font-medium">${selectedModel.inputCostPerM}/${selectedModel.outputCostPerM}/M</span>
                     )}
                   </div>
+
+                  {/* Copy all conversation button */}
+                  <button
+                    onClick={() => {
+                      if (chatMessages.length === 0) return;
+                      navigator.clipboard.writeText(formatChatExport(chatMessages));
+                    }}
+                    disabled={chatMessages.length === 0}
+                    title="Copy entire conversation"
+                    className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 disabled:opacity-20 transition-all"
+                  >
+                    <ClipboardCopy size={14} />
+                  </button>
                 </div>
 
-                {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-3">
+                {/* ── Chat Messages ────────────────────────────────────── */}
+                <div className={CHAT_STYLES.container.messages}>
                   {chatMessages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <MessageSquare size={36} className="text-white/10 mb-3" />
-                      <p className="text-sm text-white/30 font-medium" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
+                      <p className="text-sm text-white/40 font-medium" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
                         Start a conversation
                       </p>
-                      <p className="text-[10px] text-white/15 mt-1">
+                      <p className="text-[10px] text-white/20 mt-1">
                         {selectedModel.id === HUMPHI_MODEL_ID
-                          ? `HumPhi · Free · 100 msgs/day · Vision enabled`
-                          : `${selectedModel.name} · ${selectedModel.isFree ? `Free · ${selectedModel.freeLimit} msgs/day` : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM} per M tokens`}${selectedModel.supportsVision ? ' · Vision enabled' : ''}`
-                        }
+                          ? 'HumPhi · Free · 100 msgs/day · Vision enabled'
+                          : `${selectedModel.name} · ${selectedModel.isFree ? `Free · ${selectedModel.freeLimit} msgs/day` : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM}/M`}${selectedModel.supportsVision ? ' · Vision' : ''}`}
                       </p>
                     </div>
                   )}
+
                   {chatMessages.map((msg, i) => (
-                    <div key={i} className={cn("flex flex-col gap-1.5", msg.role === 'user' ? 'items-end' : 'items-start')}>
+                    <div key={i} className={cn("relative group", CHAT_STYLES.row[msg.role as 'user' | 'assistant'])}>
+
+                      {/* Per-message action bar (copy / forward / delete) */}
+                      <div className={cn(
+                        CHAT_STYLES.actions.wrap,
+                        msg.role === 'user' ? 'right-0' : 'left-0'
+                      )}>
+                        <button
+                          className={CHAT_STYLES.actions.button}
+                          title="Copy message"
+                          onClick={() => navigator.clipboard.writeText(msg.content)}
+                        >
+                          <Copy size={12} />
+                        </button>
+                        <button
+                          className={CHAT_STYLES.actions.button}
+                          title="Forward to input"
+                          onClick={() => setChatInput(msg.content)}
+                        >
+                          <CornerUpRight size={12} />
+                        </button>
+                        <button
+                          className={cn(CHAT_STYLES.actions.button, 'hover:!text-red-400')}
+                          title="Delete message"
+                          onClick={() => setChatMessages(prev => prev.filter((_, j) => j !== i))}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+
+                      {/* Image attachments */}
                       {msg.images && msg.images.length > 0 && (
-                        <div className="flex gap-2 flex-wrap justify-end">
+                        <div className={cn("flex gap-2 flex-wrap", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                           {msg.images.map((img, j) => (
-                            <img key={j} src={img} alt="" className="h-20 w-auto rounded-xl border border-white/10 object-cover max-w-[160px]" />
+                            <img key={j} src={img} alt="" className={CHAT_STYLES.image} />
                           ))}
                         </div>
                       )}
+
+                      {/* Bubble */}
                       {msg.content && (
                         <div className={cn(
-                          "max-w-[82%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                          CHAT_STYLES.bubble.base,
                           msg.role === 'user'
-                            ? "bg-[#22C9E8]/20 text-white rounded-br-sm"
-                            : "bg-white/5 text-white/90 rounded-bl-sm border border-white/5"
+                            ? cn(CHAT_STYLES.bubble.user, CHAT_STYLES.bubble.userRounded)
+                            : cn(CHAT_STYLES.bubble.assistant, CHAT_STYLES.bubble.assistantRounded)
                         )} style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                          <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&>p]:!text-inherit [&>p]:!m-0 [&>ul]:!text-inherit [&>ol]:!text-inherit [&>li]:!text-inherit">
+                          <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&>p]:!text-white [&>p]:!m-0 [&>ul]:!text-white [&>ol]:!text-white [&>li]:!text-white [&>code]:!text-[#22C9E8] [&>strong]:!text-white">
                             {msg.content}
                           </ReactMarkdown>
                         </div>
                       )}
                     </div>
                   ))}
+
+                  {/* Typing indicator */}
                   {isChatLoading && (
                     <div className="flex justify-start">
-                      <div className="px-4 py-3 bg-white/5 rounded-2xl rounded-bl-sm border border-white/5">
+                      <div className={cn('px-4 py-3', CHAT_STYLES.bubble.assistant, CHAT_STYLES.bubble.assistantRounded)}>
                         <div className="flex gap-1.5">
-                          <div className="w-2 h-2 bg-[#22C9E8]/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <div className="w-2 h-2 bg-[#22C9E8]/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <div className="w-2 h-2 bg-[#22C9E8]/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '0ms' }} />
+                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '150ms' }} />
+                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '300ms' }} />
                         </div>
                       </div>
                     </div>
@@ -1782,18 +1838,18 @@ Identity Rules:
                   <div ref={chatEndScrollRef} />
                 </div>
 
-                {/* Chat Input */}
-                <div className="shrink-0 px-4 md:px-5 py-3 border-t border-white/5 bg-[#0D1117]/90 backdrop-blur-md">
+                {/* ── Chat Input ───────────────────────────────────────── */}
+                <div className={CHAT_STYLES.container.footer}>
                   {/* Pending image previews */}
                   {pendingImages.length > 0 && (
                     <div className="flex gap-2 mb-2 flex-wrap">
                       {pendingImages.map((img, i) => (
-                        <div key={i} className="relative group">
-                          <img src={img.dataUrl} alt={img.name} className="h-14 w-auto rounded-xl border border-white/10 object-cover max-w-[100px]" />
+                        <div key={i} className="relative group/img">
+                          <img src={img.dataUrl} alt={img.name} className={cn(CHAT_STYLES.image, 'h-14 max-w-[90px]')} />
                           <button
                             type="button"
                             onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover/img:opacity-100 transition-opacity shadow-lg"
                           >
                             <X size={10} />
                           </button>
@@ -1820,7 +1876,7 @@ Identity Rules:
                           onClick={() => chatFileInputRef.current?.click()}
                           disabled={isChatLoading}
                           title="Attach image (PNG, JPG, GIF, WEBP · max 10MB)"
-                          className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/10 disabled:opacity-30 transition-all shrink-0"
+                          className="p-2.5 bg-white/8 border border-white/15 rounded-xl text-white/60 hover:text-white hover:bg-white/15 disabled:opacity-30 transition-all shrink-0"
                         >
                           <Paperclip size={15} />
                         </button>
@@ -1831,7 +1887,7 @@ Identity Rules:
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       placeholder="Message… (Enter to send)"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#22C9E8]/30 transition-colors"
+                      className={CHAT_STYLES.input}
                       style={{ fontFamily: "'Comfortaa', sans-serif" }}
                       disabled={isChatLoading}
                     />
@@ -1938,7 +1994,7 @@ Identity Rules:
               )}
             >
               {isMicOn ? <Mic size={18} className="md:w-5 md:h-5" /> : <MicOff size={18} className="md:w-5 md:h-5" />}
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Mic</span>
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Mic</span>
             </button>
 
             <button
@@ -1952,7 +2008,7 @@ Identity Rules:
               )}
             >
               <Video size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Cam</span>
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Cam</span>
             </button>
 
             <button
@@ -1966,7 +2022,7 @@ Identity Rules:
               )}
             >
               <Monitor size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Tab</span>
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Tab</span>
             </button>
 
             <button
@@ -1980,7 +2036,7 @@ Identity Rules:
               )}
             >
               <LayoutDashboard size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Desktop</span>
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Desktop</span>
             </button>
 
             <button
@@ -1993,7 +2049,7 @@ Identity Rules:
               )}
             >
               <MessageSquare size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest !text-white" style={{ fontFamily: "'Comfortaa', sans-serif" }}>Chat</span>
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Chat</span>
             </button>
           </div>
         </div>
