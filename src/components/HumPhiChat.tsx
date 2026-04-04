@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Plus, MessageSquare, Trash2, Copy, Check, Share2,
-  Send, ChevronLeft, ChevronRight, Menu, X, Loader2,
-  Download,
+  Send, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { CHAT_STYLES, getShareLinks } from '../lib/chat-config';
+import { getShareLinks } from '../lib/chat-config';
 import { cn } from '../lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -16,78 +15,65 @@ interface ChatMessage {
   content: string;
   timestamp?: number;
 }
-
 interface ChatSession {
   id: string;
   title: string;
   createdAt: number;
 }
 
-// ── Code block renderer with sticky copy button ─────────────────────
+// ── Code block with copy button ─────────────────────────────────────
 function CodeBlock({ language, children }: { language?: string; children: string }) {
   const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(children).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    });
-  };
-
   return (
-    <div className="relative my-3 rounded-xl overflow-hidden border border-white/10 bg-[#0D1117]">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+    <div className="relative my-3 rounded-xl overflow-hidden shadow-md" style={{ background: '#1A2232', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="flex items-center justify-between px-4 py-2" style={{ background: '#0D1117', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
           {language || 'code'}
         </span>
         <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+          onClick={() => { navigator.clipboard.writeText(children); setCopied(true); setTimeout(() => setCopied(false), 1800); }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors"
+          style={{ color: 'rgba(255,255,255,0.45)' }}
         >
           {copied ? <Check size={11} /> : <Copy size={11} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-[13px] text-white/90 leading-relaxed">
+      <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
         <code>{children}</code>
       </pre>
     </div>
   );
 }
 
-// ── Markdown renderer using code block component ────────────────────
-function MessageContent({ content }: { content: string }) {
+// ── Markdown ────────────────────────────────────────────────────────
+function MessageContent({ content, isUser }: { content: string; isUser?: boolean }) {
+  const textColor  = isUser ? '#ffffff' : '#0D1117';
+  const codeColor  = isUser ? '#FFE0CC' : '#C2410C';
+  const codeBg     = isUser ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.07)';
+
   return (
     <ReactMarkdown
       components={{
-        code({ node, className, children, ...props }: any) {
+        code({ className, children, ...props }: any) {
           const isInline = !className;
-          const language = className?.replace('language-', '') || '';
           if (isInline) {
             return (
-              <code
-                className="px-1.5 py-0.5 rounded-md bg-black/30 text-[#22C9E8] text-xs font-mono"
-                {...props}
-              >
+              <code style={{ background: codeBg, color: codeColor, padding: '1px 5px', borderRadius: 5, fontSize: 12, fontFamily: 'monospace' }} {...props}>
                 {children}
               </code>
             );
           }
-          return (
-            <CodeBlock language={language}>
-              {String(children).replace(/\n$/, '')}
-            </CodeBlock>
-          );
+          return <CodeBlock language={className?.replace('language-', '') || ''}>{String(children).replace(/\n$/, '')}</CodeBlock>;
         },
-        p({ children }) { return <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>; },
-        ul({ children }) { return <ul className="list-disc pl-5 mb-2 space-y-0.5">{children}</ul>; },
-        ol({ children }) { return <ol className="list-decimal pl-5 mb-2 space-y-0.5">{children}</ol>; },
-        li({ children }) { return <li className="leading-relaxed">{children}</li>; },
-        strong({ children }) { return <strong className="font-bold text-white">{children}</strong>; },
-        h1({ children }) { return <h1 className="text-xl font-bold mb-2 mt-3">{children}</h1>; },
-        h2({ children }) { return <h2 className="text-lg font-bold mb-2 mt-3">{children}</h2>; },
-        h3({ children }) { return <h3 className="text-base font-semibold mb-1.5 mt-2">{children}</h3>; },
+        p({ children })      { return <p style={{ color: textColor, marginBottom: 6, lineHeight: 1.65 }}>{children}</p>; },
+        ul({ children })     { return <ul style={{ color: textColor, paddingLeft: 20, marginBottom: 6 }}>{children}</ul>; },
+        ol({ children })     { return <ol style={{ color: textColor, paddingLeft: 20, marginBottom: 6 }}>{children}</ol>; },
+        li({ children })     { return <li style={{ color: textColor, lineHeight: 1.6 }}>{children}</li>; },
+        strong({ children }) { return <strong style={{ color: textColor, fontWeight: 700 }}>{children}</strong>; },
+        h1({ children })     { return <h1 style={{ color: textColor, fontSize: 18, fontWeight: 700, margin: '10px 0 6px' }}>{children}</h1>; },
+        h2({ children })     { return <h2 style={{ color: textColor, fontSize: 16, fontWeight: 700, margin: '8px 0 5px' }}>{children}</h2>; },
+        h3({ children })     { return <h3 style={{ color: textColor, fontSize: 14, fontWeight: 600, margin: '6px 0 4px' }}>{children}</h3>; },
       }}
     >
       {content}
@@ -95,129 +81,92 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
-// ── Per-message action bar ──────────────────────────────────────────
-function MessageActions({
-  content,
-  onDelete,
-}: {
-  content: string;
-  onDelete: () => void;
-}) {
+// ── Per-message actions ─────────────────────────────────────────────
+function MessageActions({ content, isUser, onDelete }: { content: string; isUser: boolean; onDelete: () => void }) {
   const [copied, setCopied] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(content).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    });
-  };
-
   const links = getShareLinks(content);
 
   return (
-    <div className={CHAT_STYLES.actions.wrap}>
-      {/* Copy */}
-      <button onClick={handleCopy} className={CHAT_STYLES.actions.button} title="Copy">
+    <div
+      className="absolute -top-9 flex gap-1 rounded-2xl px-2 py-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none group-hover:pointer-events-auto"
+      style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.10)' }}
+    >
+      <button onClick={() => { navigator.clipboard.writeText(content); setCopied(true); setTimeout(() => setCopied(false), 1800); }}
+        className="p-1.5 rounded-xl transition-colors hover:bg-black/5" title="Copy"
+        style={{ color: copied ? '#16a34a' : 'rgba(0,0,0,0.4)' }}>
         {copied ? <Check size={13} /> : <Copy size={13} />}
       </button>
-
-      {/* Share */}
       <div className="relative">
-        <button
-          onClick={() => setShareOpen(v => !v)}
-          className={CHAT_STYLES.actions.button}
-          title="Share"
-        >
+        <button onClick={() => setShareOpen(v => !v)} className="p-1.5 rounded-xl hover:bg-black/5 transition-colors" title="Share"
+          style={{ color: 'rgba(0,0,0,0.4)' }}>
           <Share2 size={13} />
         </button>
-
         <AnimatePresence>
           {shareOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 4 }}
-              transition={{ duration: 0.12 }}
-              className={CHAT_STYLES.shareMenu.wrap}
+              initial={{ opacity: 0, scale: 0.92, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 4 }} transition={{ duration: 0.1 }}
+              className="absolute -top-28 left-0 flex flex-col gap-0.5 rounded-2xl p-2 shadow-xl z-30"
+              style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.10)', minWidth: 140 }}
               onMouseLeave={() => setShareOpen(false)}
             >
-              <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" className={CHAT_STYLES.shareMenu.item}>
-                <span className="text-[#25D366] text-base leading-none">●</span> WhatsApp
-              </a>
-              <a href={links.facebook} target="_blank" rel="noopener noreferrer" className={CHAT_STYLES.shareMenu.item}>
-                <span className="text-[#1877F2] text-base leading-none">●</span> Facebook
-              </a>
-              <a href={links.twitter} target="_blank" rel="noopener noreferrer" className={CHAT_STYLES.shareMenu.item}>
-                <span className="text-white text-base leading-none">✕</span> X / Twitter
-              </a>
+              {[
+                { href: links.whatsapp, dot: '#25D366', label: 'WhatsApp' },
+                { href: links.facebook, dot: '#1877F2', label: 'Facebook' },
+                { href: links.twitter,  dot: '#000000', label: 'X / Twitter' },
+              ].map(item => (
+                <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold hover:bg-black/5 transition-colors"
+                  style={{ color: 'rgba(0,0,0,0.7)' }}>
+                  <span style={{ color: item.dot, fontSize: 16, lineHeight: 1 }}>●</span>{item.label}
+                </a>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      {/* Delete */}
-      <button onClick={onDelete} className={cn(CHAT_STYLES.actions.button, 'hover:text-red-400')} title="Delete">
+      <button onClick={onDelete} className="p-1.5 rounded-xl hover:bg-red-50 transition-colors" title="Delete"
+        style={{ color: 'rgba(0,0,0,0.4)' }}>
         <Trash2 size={13} />
       </button>
     </div>
   );
 }
 
-// ── Sidebar session group helper ────────────────────────────────────
-function groupByDate(sessions: ChatSession[]): Record<string, ChatSession[]> {
-  const now = Date.now();
-  const DAY = 86_400_000;
-  const groups: Record<string, ChatSession[]> = {};
-
+// ── Date grouping ───────────────────────────────────────────────────
+function groupByDate(sessions: ChatSession[]) {
+  const now = Date.now(), DAY = 86_400_000;
+  const g: Record<string, ChatSession[]> = {};
   for (const s of sessions) {
-    const diff = now - s.createdAt;
-    let label: string;
-    if (diff < DAY) label = 'Today';
-    else if (diff < 2 * DAY) label = 'Yesterday';
-    else if (diff < 7 * DAY) label = 'This week';
-    else label = 'Older';
-    (groups[label] = groups[label] || []).push(s);
+    const d = now - s.createdAt;
+    const label = d < DAY ? 'Today' : d < 2*DAY ? 'Yesterday' : d < 7*DAY ? 'This week' : 'Older';
+    (g[label] = g[label] || []).push(s);
   }
-  return groups;
+  return g;
 }
 
-// ── Main component ──────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────
 export default function HumPhiChat() {
   const { user } = useUser();
   const { getToken } = useAuth();
 
-  // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessions, setSessions]       = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
-  // Messages
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [messages, setMessages]       = useState<ChatMessage[]>([]);
+  const [input, setInput]             = useState('');
+  const [isStreaming, setIsStreaming]  = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-
-  // Token/cost tracking
-  const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
+  const [tokenUsage, setTokenUsage]   = useState({ input: 0, output: 0 });
   const [sessionCost, setSessionCost] = useState(0);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
   const abortRef  = useRef<AbortController | null>(null);
 
-  // ── Load sessions on mount ─────────────────────────────────────────
-  useEffect(() => {
-    if (!user?.id) return;
-    loadSessions();
-  }, [user?.id]);
-
-  // ── Auto-scroll ────────────────────────────────────────────────────
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
-
-  // ── Auto-resize textarea ───────────────────────────────────────────
+  useEffect(() => { if (user?.id) loadSessions(); }, [user?.id]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent]);
   useEffect(() => {
     if (!inputRef.current) return;
     inputRef.current.style.height = 'auto';
@@ -228,269 +177,173 @@ export default function HumPhiChat() {
     if (!user?.id) return;
     try {
       const token = await getToken();
-      const res = await fetch(`/api/chat/sessions?userId=${user.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const res = await fetch(`/api/chat/sessions?userId=${user.id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setSessions(await res.json());
     } catch {}
   };
 
-  const loadSession = async (sessionId: string) => {
+  const loadSession = async (id: string) => {
     if (!user?.id) return;
     try {
       const token = await getToken();
-      const res = await fetch(`/api/chat/session/${sessionId}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
-        setActiveSessionId(sessionId);
-        setTokenUsage({ input: 0, output: 0 });
-        setSessionCost(0);
-      }
+      const res = await fetch(`/api/chat/session/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); setMessages(d.messages || []); setActiveSessionId(id); setTokenUsage({ input:0, output:0 }); setSessionCost(0); }
     } catch {}
   };
 
   const startNewChat = () => {
     abortRef.current?.abort();
-    setActiveSessionId(null);
-    setMessages([]);
-    setInput('');
-    setStreamingContent('');
-    setTokenUsage({ input: 0, output: 0 });
-    setSessionCost(0);
+    setActiveSessionId(null); setMessages([]); setInput(''); setStreamingContent('');
+    setTokenUsage({ input:0, output:0 }); setSessionCost(0);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
+  const deleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user?.id) return;
-    try {
-      const token = await getToken();
-      await fetch(`/api/chat/session/${sessionId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      setSessions(prev => prev.filter(s => s.id !== sessionId));
-      if (activeSessionId === sessionId) startNewChat();
-    } catch {}
+    const token = await getToken();
+    await fetch(`/api/chat/session/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    setSessions(p => p.filter(s => s.id !== id));
+    if (activeSessionId === id) startNewChat();
   };
 
-  const deleteMessage = (index: number) => {
-    setMessages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // ── Send message ───────────────────────────────────────────────────
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || isStreaming || !user?.id) return;
-
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
     const userMsg: ChatMessage = { role: 'user', content: text, timestamp: Date.now() };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setInput('');
-    setIsStreaming(true);
-    setStreamingContent('');
-
-    const payload = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+    const updated = [...messages, userMsg];
+    setMessages(updated); setInput(''); setIsStreaming(true); setStreamingContent('');
 
     try {
       const token = await getToken();
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: payload,
-          userId: user.id,
-          sessionId: activeSessionId,
-        }),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updated.map(m => ({ role: m.role, content: m.content })), userId: user.id, sessionId: activeSessionId }),
         signal: abortRef.current.signal,
       });
 
       if (!res.ok || !res.body) {
-        setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Failed to connect to HumPhi. Please try again.', timestamp: Date.now() }]);
-        setIsStreaming(false);
-        return;
+        setMessages(p => [...p, { role: 'assistant', content: '⚠️ Failed to connect. Please try again.' }]);
+        setIsStreaming(false); return;
       }
 
-      const reader  = res.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-
+      const reader = res.body.getReader(), decoder = new TextDecoder();
+      let acc = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
+        for (const line of decoder.decode(value, { stream: true }).split('\n')) {
           if (!line.startsWith('data: ')) continue;
           try {
-            const evt = JSON.parse(line.slice(6));
-
-            if (evt.type === 'session') {
-              setActiveSessionId(evt.sessionId);
-              const newSession: ChatSession = { id: evt.sessionId, title: evt.title, createdAt: Date.now() };
-              setSessions(prev => [newSession, ...prev.filter(s => s.id !== evt.sessionId)]);
-            }
-
-            if (evt.type === 'delta') {
-              accumulated += evt.content;
-              setStreamingContent(accumulated);
-            }
-
-            if (evt.type === 'done') {
-              setTokenUsage(prev => ({
-                input:  prev.input  + (evt.inputTokens  || 0),
-                output: prev.output + (evt.outputTokens || 0),
-              }));
-              setSessionCost(prev => prev + (evt.cost || 0));
-            }
-
-            if (evt.type === 'error') {
-              accumulated += `\n\n⚠️ ${evt.message}`;
-            }
+            const e = JSON.parse(line.slice(6));
+            if (e.type === 'session') { setActiveSessionId(e.sessionId); setSessions(p => [{ id: e.sessionId, title: e.title, createdAt: Date.now() }, ...p.filter(s => s.id !== e.sessionId)]); }
+            if (e.type === 'delta')   { acc += e.content; setStreamingContent(acc); }
+            if (e.type === 'done')    { setTokenUsage(p => ({ input: p.input + (e.inputTokens||0), output: p.output + (e.outputTokens||0) })); setSessionCost(p => p + (e.cost||0)); }
+            if (e.type === 'error')   { acc += `\n\n⚠️ ${e.message}`; }
           } catch {}
         }
       }
-
-      setMessages(prev => [...prev, { role: 'assistant', content: accumulated, timestamp: Date.now() }]);
+      setMessages(p => [...p, { role: 'assistant', content: acc }]);
       setStreamingContent('');
-
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Connection interrupted. Please try again.', timestamp: Date.now() }]);
-      }
-    } finally {
-      setIsStreaming(false);
-    }
+      if (err.name !== 'AbortError') setMessages(p => [...p, { role: 'assistant', content: '⚠️ Connection lost. Please try again.' }]);
+    } finally { setIsStreaming(false); }
   }, [input, isStreaming, messages, activeSessionId, user?.id, getToken]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  // ── Sidebar groups ─────────────────────────────────────────────────
-  const sessionGroups = groupByDate(sessions);
-  const groupOrder    = ['Today', 'Yesterday', 'This week', 'Older'];
+  const groups = groupByDate(sessions);
+  const groupOrder = ['Today', 'Yesterday', 'This week', 'Older'];
+  const activeTitle = sessions.find(s => s.id === activeSessionId)?.title;
 
+  // ── Render ─────────────────────────────────────────────────────
+  // Parent (main-scroll in App.tsx) already has background: #22C9E8 (teal)
+  // We just need to fill the height and lay out the sidebar + white card
   return (
     <div
-      className="flex h-full w-full overflow-hidden"
-      style={{ background: '#0D1117', fontFamily: "'Comfortaa', sans-serif" }}
+      className="flex overflow-hidden"
+      style={{ height: '100dvh', fontFamily: "'Comfortaa', sans-serif" }}
     >
-      {/* ── Sidebar ──────────────────────────────────────────────── */}
+      {/* ── Dark Sidebar ──────────────────────────────────── */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
           <motion.aside
-            key="sidebar"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 256, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeInOut' }}
-            className="flex-shrink-0 flex flex-col overflow-hidden"
-            style={{
-              background: '#0D1117',
-              borderRight: '1px solid rgba(255,255,255,0.07)',
-            }}
+            key="sb"
+            initial={{ width: 0, opacity: 0 }} animate={{ width: 260, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.22, ease: 'easeInOut' }}
+            className="flex-shrink-0 overflow-hidden"
+            style={{ background: '#0D1117', borderRight: '1px solid rgba(255,255,255,0.06)' }}
           >
-            <div className="flex flex-col h-full w-64">
-              {/* Sidebar header */}
+            <div className="flex flex-col h-full w-[260px]">
+              {/* Logo row */}
               <div className="flex items-center justify-between px-4 pt-5 pb-3">
-                <span
-                  className="font-black text-sm tracking-tight"
-                  style={{ color: '#22C9E8' }}
-                >
+                <span className="font-black text-sm" style={{ color: '#22C9E8' }}>
                   hum<span style={{ color: '#FF6619' }}>φ</span> chat
                 </span>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                >
+                <button onClick={() => setSidebarOpen(false)}
+                  className="p-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.4)' }}>
                   <ChevronLeft size={15} />
                 </button>
               </div>
 
-              {/* New chat */}
+              {/* New Chat button */}
               <div className="px-3 pb-3">
-                <button
-                  onClick={startNewChat}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-colors hover:bg-white/10"
-                  style={{ color: '#FF6619', border: '1px solid rgba(255,102,25,0.25)' }}
-                >
-                  <Plus size={15} />
-                  New Chat
+                <button onClick={startNewChat}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{ background: '#FF6619' }}>
+                  <Plus size={15} /> New Chat
                 </button>
               </div>
 
               {/* Session list */}
               <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-4">
                 {groupOrder.map(label => {
-                  const group = sessionGroups[label];
+                  const group = groups[label];
                   if (!group?.length) return null;
                   return (
                     <div key={label}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-2 mb-1.5">
-                        {label}
-                      </p>
+                      <p className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>{label}</p>
                       <div className="space-y-0.5">
-                        {group.map(session => (
-                          <button
-                            key={session.id}
-                            onClick={() => loadSession(session.id)}
-                            className={cn(
-                              'group w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm transition-colors',
-                              activeSessionId === session.id
-                                ? 'bg-[#22C9E8]/15 text-white'
-                                : 'text-white/60 hover:text-white hover:bg-white/8'
-                            )}
+                        {group.map(s => (
+                          <button key={s.id} onClick={() => loadSession(s.id)}
+                            className="group w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs transition-colors"
+                            style={{ background: activeSessionId === s.id ? 'rgba(34,201,232,0.15)' : 'transparent', color: activeSessionId === s.id ? '#fff' : 'rgba(255,255,255,0.5)' }}
                           >
-                            <MessageSquare size={13} className="shrink-0 opacity-60" />
-                            <span className="flex-1 truncate text-xs leading-snug">{session.title}</span>
-                            <button
-                              onClick={(e) => deleteSession(session.id, e)}
-                              className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:text-red-400 transition-all"
-                            >
+                            <MessageSquare size={12} className="shrink-0 opacity-50" />
+                            <span className="flex-1 truncate">{s.title}</span>
+                            <span onClick={(e: any) => deleteSession(s.id, e)}
+                              className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:text-red-400 transition-all cursor-pointer">
                               <Trash2 size={11} />
-                            </button>
+                            </span>
                           </button>
                         ))}
                       </div>
                     </div>
                   );
                 })}
-
                 {sessions.length === 0 && (
-                  <p className="text-xs text-white/20 text-center mt-8 px-4">
-                    Your conversations will appear here.
+                  <p className="text-xs text-center mt-8 px-4" style={{ color: 'rgba(255,255,255,0.2)', lineHeight: 1.7 }}>
+                    Your conversations<br />will appear here.
                   </p>
                 )}
               </div>
 
-              {/* Sidebar footer — model badge */}
-              <div className="px-4 py-3 border-t border-white/7">
-                <div
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                  style={{ background: 'rgba(34,201,232,0.07)', border: '1px solid rgba(34,201,232,0.15)' }}
-                >
-                  <div
-                    className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #22C9E8, #0AABCA)', color: '#0D1117' }}
-                  >
-                    φ
-                  </div>
+              {/* Model badge */}
+              <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                  style={{ background: 'rgba(34,201,232,0.08)', border: '1px solid rgba(34,201,232,0.15)' }}>
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#22C9E8,#0AABCA)', color: '#0D1117' }}>φ</div>
                   <div>
                     <p className="text-[10px] font-black text-white leading-none">HumPhi 4 31B ✦</p>
-                    <p className="text-[9px] text-white/30 mt-0.5">by Humphi</p>
+                    <p className="text-[9px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>by Humphi</p>
                   </div>
                 </div>
               </div>
@@ -499,179 +352,129 @@ export default function HumPhiChat() {
         )}
       </AnimatePresence>
 
-      {/* ── Main chat area ────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* ── Main area — white card on teal (teal comes from parent) ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-4">
+        {/* White rounded card */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-2xl shadow-xl" style={{ background: '#ffffff' }}>
 
-        {/* Top bar */}
-        <div
-          className="shrink-0 flex items-center gap-3 px-4 py-3"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#0D1117' }}
-        >
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={15} />
-            </button>
-          )}
-
-          <div className="flex-1 min-w-0">
-            {activeSessionId && sessions.find(s => s.id === activeSessionId) ? (
-              <p className="text-sm font-semibold text-white truncate">
-                {sessions.find(s => s.id === activeSessionId)?.title}
-              </p>
-            ) : (
-              <p className="text-sm font-semibold text-white/40">New conversation</p>
+          {/* Top bar */}
+          <div className="shrink-0 flex items-center gap-3 px-5 py-3"
+            style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', background: '#ffffff' }}>
+            {!sidebarOpen && (
+              <button onClick={() => setSidebarOpen(true)}
+                className="p-1.5 rounded-xl hover:bg-black/5 transition-colors"
+                style={{ color: 'rgba(0,0,0,0.3)' }}>
+                <ChevronRight size={15} />
+              </button>
             )}
-          </div>
-
-          {/* Token stats */}
-          {(tokenUsage.input + tokenUsage.output > 0) && (
-            <div className="flex items-center gap-3 text-[10px] font-bold text-white/40">
-              <span>{(tokenUsage.input + tokenUsage.output).toLocaleString()} tok</span>
-              <span style={{ color: '#FF6619' }}>${sessionCost.toFixed(4)}</span>
-            </div>
-          )}
-
-          <button
-            onClick={startNewChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors hover:bg-white/10"
-            style={{ color: '#FF6619', border: '1px solid rgba(255,102,25,0.2)' }}
-          >
-            <Plus size={13} />
-            New
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className={CHAT_STYLES.container.messages} style={{ background: '#0D1117' }}>
-          {messages.length === 0 && !isStreaming && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center h-full text-center py-24 gap-5"
-            >
-              <div
-                className="w-16 h-16 rounded-[22px] flex items-center justify-center text-2xl font-black shadow-2xl"
-                style={{ background: 'linear-gradient(135deg, #22C9E8, #0AABCA)', color: '#0D1117' }}
-              >
-                φ
-              </div>
-              <div>
-                <p className="text-xl font-black text-white mb-2">How can I help you?</p>
-                <p className="text-sm text-white/40 max-w-xs">
-                  Ask me anything — code, analysis, writing, or just a chat.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-              className={cn('group relative', CHAT_STYLES.row[msg.role])}
-            >
-              <div
-                className={cn(
-                  CHAT_STYLES.bubble.base,
-                  msg.role === 'user'
-                    ? cn(CHAT_STYLES.bubble.user, CHAT_STYLES.bubble.userRounded)
-                    : cn(CHAT_STYLES.bubble.assistant, CHAT_STYLES.bubble.assistantRounded),
-                  'text-sm'
-                )}
-              >
-                <MessageContent content={msg.content} />
-              </div>
-
-              {/* Action bar */}
-              <MessageActions
-                content={msg.content}
-                onDelete={() => deleteMessage(i)}
-              />
-            </motion.div>
-          ))}
-
-          {/* Streaming bubble */}
-          {isStreaming && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn('group relative', CHAT_STYLES.row.assistant)}
-            >
-              <div
-                className={cn(
-                  CHAT_STYLES.bubble.base,
-                  CHAT_STYLES.bubble.assistant,
-                  CHAT_STYLES.bubble.assistantRounded,
-                  'text-sm'
-                )}
-              >
-                {streamingContent ? (
-                  <MessageContent content={streamingContent} />
-                ) : (
-                  <div className="flex items-center gap-1.5 py-0.5">
-                    {[0, 1, 2].map(i => (
-                      <div
-                        key={i}
-                        className={CHAT_STYLES.typingDot}
-                        style={{ animationDelay: `${i * 0.15}s` }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input bar */}
-        <div
-          className={CHAT_STYLES.container.footer}
-          style={{ background: '#0D1117', borderTop: '1px solid rgba(255,255,255,0.07)' }}
-        >
-          <div
-            className="flex items-end gap-3 p-3 rounded-2xl"
-            style={{ background: '#1A2232', border: '1px solid rgba(255,255,255,0.10)' }}
-          >
-            <textarea
-              ref={inputRef}
-              rows={1}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Message HumPhi…"
-              disabled={isStreaming}
-              className={cn(
-                'flex-1 bg-transparent resize-none text-sm text-white placeholder:text-white/30',
-                'focus:outline-none leading-relaxed min-h-[20px]',
-                'disabled:opacity-50'
-              )}
-              style={{ maxHeight: 160 }}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || isStreaming}
-              className={cn(
-                'shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all',
-                'disabled:opacity-30 disabled:cursor-not-allowed'
-              )}
-              style={{ background: input.trim() && !isStreaming ? '#FF6619' : 'rgba(255,102,25,0.2)' }}
-            >
-              {isStreaming
-                ? <Loader2 size={16} className="text-white animate-spin" />
-                : <Send size={16} className="text-white" />
+            <div className="flex-1 min-w-0">
+              {activeTitle
+                ? <p className="text-sm font-bold truncate" style={{ color: '#0D1117' }}>{activeTitle}</p>
+                : <p className="text-sm font-semibold" style={{ color: 'rgba(0,0,0,0.3)' }}>New conversation</p>
               }
+            </div>
+            {(tokenUsage.input + tokenUsage.output > 0) && (
+              <div className="flex items-center gap-3 text-[11px] font-bold" style={{ color: 'rgba(0,0,0,0.35)' }}>
+                <span>{(tokenUsage.input + tokenUsage.output).toLocaleString()} tok</span>
+                <span style={{ color: '#FF6619' }}>${sessionCost.toFixed(4)}</span>
+              </div>
+            )}
+            <button onClick={startNewChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 active:scale-95"
+              style={{ background: '#FF6619' }}>
+              <Plus size={13} /> New
             </button>
           </div>
-          <p className="text-center text-[10px] text-white/20 mt-2">
-            HumPhi can make mistakes. Verify important information.
-          </p>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4" style={{ background: '#F4F9FA' }}>
+            {messages.length === 0 && !isStreaming && (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center h-full text-center py-24 gap-5">
+                <div className="w-16 h-16 rounded-[22px] flex items-center justify-center text-2xl font-black shadow-lg text-white"
+                  style={{ background: 'linear-gradient(135deg,#22C9E8,#0AABCA)' }}>φ</div>
+                <div>
+                  <p className="text-xl font-black mb-2" style={{ color: '#0D1117' }}>How can I help you?</p>
+                  <p className="text-sm max-w-xs leading-relaxed" style={{ color: 'rgba(0,0,0,0.4)' }}>
+                    Ask me anything — code, analysis, writing, or just a chat.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {messages.map((msg, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.16 }}
+                className={cn('group relative flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}
+              >
+                <div className="relative max-w-[80%]">
+                  <div
+                    className="px-4 py-3 rounded-2xl text-sm shadow-sm"
+                    style={msg.role === 'user'
+                      ? { background: '#FF6619', borderRadius: '18px 18px 4px 18px' }
+                      : { background: '#ffffff', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: '18px 18px 18px 4px' }
+                    }
+                  >
+                    <MessageContent content={msg.content} isUser={msg.role === 'user'} />
+                  </div>
+                  <MessageActions
+                    content={msg.content}
+                    isUser={msg.role === 'user'}
+                    onDelete={() => setMessages(p => p.filter((_, j) => j !== i))}
+                  />
+                </div>
+              </motion.div>
+            ))}
+
+            {/* Streaming */}
+            {isStreaming && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                <div className="max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm"
+                  style={{ background: '#ffffff', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: '18px 18px 18px 4px' }}>
+                  {streamingContent
+                    ? <MessageContent content={streamingContent} isUser={false} />
+                    : (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        {[0,1,2].map(idx => (
+                          <div key={idx} className="w-2 h-2 rounded-full animate-bounce"
+                            style={{ background: '#22C9E8', animationDelay: `${idx*0.15}s` }} />
+                        ))}
+                      </div>
+                    )
+                  }
+                </div>
+              </motion.div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input bar */}
+          <div className="shrink-0 px-4 py-3" style={{ borderTop: '1px solid rgba(0,0,0,0.07)', background: '#ffffff' }}>
+            <div className="flex items-end gap-3 px-3 py-2.5 rounded-2xl"
+              style={{ background: '#F1F5F9', border: '1.5px solid rgba(0,0,0,0.09)' }}>
+              <textarea
+                ref={inputRef} rows={1} value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Message HumPhi…"
+                disabled={isStreaming}
+                className="flex-1 bg-transparent resize-none focus:outline-none leading-relaxed min-h-[22px] disabled:opacity-50"
+                style={{ fontSize: 14, color: '#0D1117', maxHeight: 160 }}
+              />
+              <button onClick={sendMessage} disabled={!input.trim() || isStreaming}
+                className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 active:scale-95"
+                style={{ background: input.trim() && !isStreaming ? '#FF6619' : 'rgba(255,102,25,0.2)' }}>
+                {isStreaming
+                  ? <Loader2 size={16} className="text-white animate-spin" />
+                  : <Send size={16} className="text-white" />
+                }
+              </button>
+            </div>
+            <p className="text-center mt-2 text-[10px]" style={{ color: 'rgba(0,0,0,0.25)' }}>
+              HumPhi can make mistakes. Verify important information.
+            </p>
+          </div>
+
         </div>
       </div>
     </div>
