@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Wallet, Mic, History, Settings,
   ExternalLink, PlusCircle, CreditCard, Loader2,
   PlugZap, TrendingUp, Activity, Zap,
-  ArrowUpRight, Shield, Star, ChevronRight, Monitor, Menu, X, ScrollText
+  ArrowUpRight, Shield, Star, ChevronRight, Monitor, Menu, X, ScrollText, MessageSquare
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -11,6 +11,7 @@ import WalletPage from "./components/Wallet";
 import RecordsPage from "./components/Records";
 import ProfilePage from "./components/Profile";
 import GeminiLive from "./components/GeminiLive";
+import HumPhiChat from "./components/HumPhiChat";
 import ConnectorsPage from "./components/Connectors";
 import LogsPage from "./components/Logs";
 import { LogProvider } from "./contexts/LogContext";
@@ -58,6 +59,7 @@ function DashboardLayout() {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard",        path: "/" },
+    { icon: MessageSquare,   label: "Chat",             path: "/chat" },
     { icon: Monitor,         label: "Recordings",       path: "/records" },
     { icon: Mic,             label: "Live Session",     path: "/live-session" },
     { icon: PlugZap,         label: "Connectors",       path: "/connectors" },
@@ -1024,6 +1026,7 @@ export default function App() {
             <Route path="/wallet"      element={<WalletPage />} />
             <Route path="/records"     element={<RecordsPage />} />
             <Route path="/profile"     element={<ProfilePage />} />
+            <Route path="/chat"         element={<HumPhiChat />} />
             <Route path="/live-session" element={<GeminiLive />} />
             <Route path="/connectors"  element={<ConnectorsPage />} />
             <Route path="/logs"        element={<LogsPage />} />

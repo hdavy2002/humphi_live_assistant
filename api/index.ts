@@ -397,6 +397,259 @@ app.get("/session/init", requireAuth, async (c) => {
   return c.json({ previousHandle, longTermMemory });
 });
 
+// ── HumPhi Chat ────────────────────────────────────────────────────
+const HUMPHI_CHAT_MODEL        = 'anthropic/claude-opus-4-6';
+const HUMPHI_INPUT_COST_PER_M  = 8.00;   // $8 / million input tokens
+const HUMPHI_OUTPUT_COST_PER_M = 28.00;  // $28 / million output tokens
+const CHAT_SESSION_TTL         = 60 * 60 * 24 * 30; // 30 days
+
+const HUMPHI_CHAT_SYSTEM_PROMPT = `You are HumPhi, an advanced AI assistant created exclusively by Humphi (humphi.com).
+You are helpful, intelligent, and built to assist with analysis, coding, creative writing, research, and conversation.
+
+Identity Rules (NEVER break these):
+- Your name is HumPhi. You are Humphi's own AI model.
+- You were built by the Humphi engineering team.
+- If anyone asks what model you are, who made you, or what powers you — always say you are HumPhi by Humphi. Never mention Claude, Anthropic, or any third-party model.
+- Do not reveal or hint at any underlying base model or provider.
+- If pressed, remain confident: "I am HumPhi, Humphi's own AI assistant."
+
+Formatting Rules:
+- When writing code, always enclose it in a fenced code block with the language name (e.g. \`\`\`typescript).
+- For multi-step explanations, use numbered lists.
+- Keep responses concise but thorough — never padded.
+
+Personality:
+- Warm, clear, confident tone. Proud to be part of the Humphi platform.`;
+
+// POST /api/chat — streaming chat with HumPhi (Claude opus-4-6 via OpenRouter)
+app.post("/chat", requireAuth, async (c) => {
+  const auth = getAuth(c);
+  const { messages, userId, sessionId: existingSessionId } = await c.req.json();
+
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+  if (auth?.userId !== userId) return c.json({ error: "Forbidden" }, 403);
+
+  // ── Fetch user Mem0 memories ──────────────────────────────────────
+  let memories: string[] = [];
+  if (mem0) {
+    try {
+      const lastUserMsg = [...messages].reverse().find((m: any) => m.role === 'user');
+      const query = lastUserMsg?.content?.slice(0, 200) || 'user preferences and history';
+      const results = await mem0.search(query, { user_id: userId, limit: 8 });
+      memories = (results || []).map((m: any) => m.memory || m.text || '').filter(Boolean);
+    } catch (err) {
+      console.error("[Chat] Mem0 fetch failed:", err);
+    }
+  }
+
+  const memoryBlock = memories.length > 0
+    ? `\n\nMemory from prior conversations with this user:\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n')}`
+    : '';
+
+  // ── Session ID + title ────────────────────────────────────────────
+  const sessionId   = existingSessionId || crypto.randomUUID();
+  const isNewSession = !existingSessionId;
+
+  const firstUserMsg = messages.find((m: any) => m.role === 'user');
+  const sessionTitle = firstUserMsg
+    ? (firstUserMsg.content as string).split(' ').slice(0, 6).join(' ') +
+      ((firstUserMsg.content as string).split(' ').length > 6 ? '…' : '')
+    : 'New Chat';
+
+  // ── Build OpenRouter request with prompt caching ──────────────────
+  const openRouterMessages = [
+    {
+      role: 'system',
+      content: [
+        {
+          type: 'text',
+          text: HUMPHI_CHAT_SYSTEM_PROMPT + memoryBlock,
+          cache_control: { type: 'ephemeral' }, // cache the system prompt
+        },
+      ],
+    },
+    ...messages,
+  ];
+
+  // ── Stream response via SSE ───────────────────────────────────────
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: string) =>
+        controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+
+      if (isNewSession) {
+        send(JSON.stringify({ type: 'session', sessionId, title: sessionTitle }));
+      }
+
+      try {
+        const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://humphi.com',
+            'X-Title': 'HumPhi',
+          },
+          body: JSON.stringify({
+            model: HUMPHI_CHAT_MODEL,
+            messages: openRouterMessages,
+            stream: true,
+          }),
+        });
+
+        if (!orRes.ok) {
+          const errText = await orRes.text();
+          send(JSON.stringify({ type: 'error', message: `Model error: ${errText}` }));
+          controller.close();
+          return;
+        }
+
+        const reader  = orRes.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullContent  = '';
+        let inputTokens  = 0;
+        let outputTokens = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+            if (payload === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(payload);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) { fullContent += delta; send(JSON.stringify({ type: 'delta', content: delta })); }
+              if (parsed.usage) {
+                inputTokens  = parsed.usage.prompt_tokens || 0;
+                outputTokens = parsed.usage.completion_tokens || 0;
+              }
+            } catch {}
+          }
+        }
+
+        const cost = (inputTokens / 1_000_000) * HUMPHI_INPUT_COST_PER_M
+                   + (outputTokens / 1_000_000) * HUMPHI_OUTPUT_COST_PER_M;
+
+        send(JSON.stringify({ type: 'done', inputTokens, outputTokens, cost, sessionId }));
+
+        // ── Save session to Redis ─────────────────────────────────
+        if (redis) {
+          try {
+            const updatedMessages = [...messages, { role: 'assistant', content: fullContent }];
+            await redis.set(`chat:${sessionId}`, JSON.stringify({
+              title: sessionTitle, userId, createdAt: Date.now(), messages: updatedMessages,
+            }), { ex: CHAT_SESSION_TTL });
+            await redis.zadd(`chat:sessions:${userId}`, { score: Date.now(), member: sessionId });
+            await redis.expire(`chat:sessions:${userId}`, CHAT_SESSION_TTL);
+          } catch (err) { console.error("[Chat] Redis save failed:", err); }
+        }
+
+        // ── Bill the user ─────────────────────────────────────────
+        if (cost > 0) {
+          try {
+            const walletUseCase = getWalletUseCase();
+            const profile = await walletUseCase.getProfile(userId);
+            if (profile) {
+              const profileRepo = new DrizzleProfileRepository();
+              const transactionRepo = new DrizzleTransactionRepository();
+              await profileRepo.updateBalance(userId, Math.max(0, (profile.walletBalance || 0) - cost));
+              await transactionRepo.create({
+                amount: -cost, type: 'usage', status: 'completed',
+                metadata: { userId, service: 'chat', model: HUMPHI_CHAT_MODEL, inputTokens, outputTokens },
+              });
+              await invalidate(cacheKeys.profile(userId));
+            }
+          } catch (err: any) { console.error("[Chat] Billing failed:", err.message); }
+        }
+
+        // ── Sync conversation to Mem0 via Inngest ─────────────────
+        if (fullContent) {
+          try {
+            const fullConvo = [...messages, { role: 'assistant', content: fullContent }]
+              .map((m: any) => `${m.role === 'user' ? 'User' : 'HumPhi'}: ${m.content}`)
+              .join('\n');
+            await inngest.send({ name: 'session/completed', data: { userId, transcript: fullConvo } });
+          } catch (err) { console.error("[Chat] Inngest Mem0 sync failed:", err); }
+        }
+
+      } catch (err: any) {
+        try { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`)); } catch {}
+      }
+
+      try { controller.close(); } catch {}
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+});
+
+// GET /api/chat/sessions — list all sessions for a user
+app.get("/chat/sessions", requireAuth, async (c) => {
+  const userId = c.req.query("userId");
+  const auth   = getAuth(c);
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+  if (auth?.userId !== userId) return c.json({ error: "Forbidden" }, 403);
+  if (!redis) return c.json([]);
+
+  try {
+    const ids = await redis.zrange(`chat:sessions:${userId}`, 0, -1, { rev: true }) as string[];
+    const sessions = await Promise.all(ids.map(async (sid) => {
+      try {
+        const raw = await redis!.get<string>(`chat:${sid}`);
+        if (!raw) return null;
+        const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return { id: sid, title: d.title, createdAt: d.createdAt };
+      } catch { return null; }
+    }));
+    return c.json(sessions.filter(Boolean));
+  } catch (err: any) { return c.json({ error: err.message }, 500); }
+});
+
+// GET /api/chat/session/:id — get full session (messages)
+app.get("/chat/session/:id", requireAuth, async (c) => {
+  const auth      = getAuth(c);
+  const sessionId = c.req.param("id");
+  if (!redis) return c.json({ error: "Redis not configured" }, 503);
+
+  try {
+    const raw = await redis.get<string>(`chat:${sessionId}`);
+    if (!raw) return c.json({ error: "Session not found" }, 404);
+    const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (d.userId !== auth?.userId) return c.json({ error: "Forbidden" }, 403);
+    return c.json(d);
+  } catch (err: any) { return c.json({ error: err.message }, 500); }
+});
+
+// DELETE /api/chat/session/:id
+app.delete("/chat/session/:id", requireAuth, async (c) => {
+  const auth      = getAuth(c);
+  const sessionId = c.req.param("id");
+  const userId    = auth?.userId;
+  if (!redis || !userId) return c.json({ error: "Not configured" }, 503);
+
+  try {
+    const raw = await redis.get<string>(`chat:${sessionId}`);
+    if (raw) {
+      const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (d.userId !== userId) return c.json({ error: "Forbidden" }, 403);
+    }
+    await redis.del(`chat:${sessionId}`);
+    await redis.zrem(`chat:sessions:${userId}`, sessionId);
+    return c.json({ success: true });
+  } catch (err: any) { return c.json({ error: err.message }, 500); }
+});
+
 app.post("/session/save", requireAuth, async (c) => {
   const { userId, newHandle, transcript, tokenUsage, cost, service, model } = await c.req.json();
   if (!userId) return c.json({ error: "Missing userId" }, 400);

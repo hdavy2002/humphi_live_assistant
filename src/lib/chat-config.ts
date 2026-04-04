@@ -3,7 +3,7 @@
  * ─────────────────────────
  * Central source of truth for all chat UI styles across the site.
  * Import CHAT_STYLES wherever you render a chat interface so every
- * chat box looks consistent without re-designing from scratch.
+ * chat box looks consistent without redesigning from scratch.
  *
  * Usage:
  *   import { CHAT_STYLES, formatChatExport } from '@/lib/chat-config';
@@ -13,11 +13,11 @@
 // ── Bubble styles ───────────────────────────────────────────────────
 export const CHAT_STYLES = {
   bubble: {
-    /** Solid teal — user messages. Always clearly distinguishable. */
-    user:      'bg-[#0E7490] text-white',
-    /** Solid navy-blue — AI/assistant messages. */
-    assistant: 'bg-[#1D3557] text-white',
-    /** Shared padding + base radius */
+    /** Pale bright orange — user messages. Vivid, clearly distinguishable. */
+    user:      'bg-[#c2410c] text-white font-medium',
+    /** Pale bright green — AI/assistant messages. */
+    assistant: 'bg-[#166534] text-white font-medium',
+    /** Shared padding + font size */
     base:      'px-4 py-3 text-sm leading-relaxed max-w-[82%]',
     /** Tail directions */
     userRounded:      'rounded-2xl rounded-br-sm',
@@ -33,10 +33,16 @@ export const CHAT_STYLES = {
   /** Image thumbnails attached to messages */
   image: 'h-20 w-auto max-w-[160px] rounded-2xl border-2 border-white/20 object-cover shadow-lg',
 
-  /** Per-message hover action bar (copy / forward / delete) */
+  /** Per-message hover action bar */
   actions: {
-    wrap:    'absolute -top-8 flex gap-1 bg-[#0a0f1a] border border-white/10 rounded-xl px-2 py-1.5 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none group-hover:pointer-events-auto',
-    button:  'p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors',
+    wrap:    'absolute -top-9 flex gap-1 bg-[#0a0f1a] border border-white/15 rounded-2xl px-2 py-1.5 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none group-hover:pointer-events-auto',
+    button:  'p-1.5 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors',
+  },
+
+  /** Social share menu */
+  shareMenu: {
+    wrap:    'absolute -top-28 flex flex-col gap-1 bg-[#0a0f1a] border border-white/15 rounded-2xl p-2 shadow-2xl z-30',
+    item:    'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap',
   },
 
   /** Chat input field */
@@ -56,7 +62,7 @@ export const CHAT_STYLES = {
   },
 
   /** Loading typing indicator */
-  typingDot: 'w-2 h-2 bg-[#22C9E8]/60 rounded-full animate-bounce',
+  typingDot: 'w-2 h-2 bg-[#4ade80]/60 rounded-full animate-bounce',
 };
 
 // ── Helper: export conversation as plain text ──────────────────────
@@ -66,4 +72,14 @@ export function formatChatExport(
   return messages
     .map(m => `[${m.role === 'user' ? 'You' : 'HumPhi'}]\n${m.content}`)
     .join('\n\n─────────────────────\n\n');
+}
+
+// ── Social share helper ────────────────────────────────────────────
+export function getShareLinks(text: string) {
+  const encoded = encodeURIComponent(text.slice(0, 500)); // cap length
+  return {
+    whatsapp: `https://wa.me/?text=${encoded}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=https://humphi.com&quote=${encoded}`,
+    twitter:  `https://twitter.com/intent/tweet?text=${encoded}`,
+  };
 }

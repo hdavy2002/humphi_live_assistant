@@ -2,11 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic, MicOff, Monitor, MonitorOff, Settings, ScrollText,
   Send, X, Play, Volume2, AlertCircle, CheckCircle2,
-  MessageSquare, Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
+  Terminal, ChevronDown, ChevronUp, Play as PlayIcon,
   Video, VideoOff, Menu, User, Wallet as WalletIcon, LogOut, History, LayoutDashboard,
-  Paperclip, Copy, Trash2, CornerUpRight, ClipboardCopy
 } from 'lucide-react';
-import { CHAT_STYLES, formatChatExport } from '../lib/chat-config';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { cn } from '../lib/utils';
 import { AudioRecorder, AudioPlayer } from '../lib/audio-utils';
@@ -19,40 +17,6 @@ import { useLogs } from '../contexts/LogContext';
 import { LogItem } from './LogItem';
 
 const MODEL_NAME = "models/gemini-3.1-flash-live-preview";
-
-// ── OpenRouter Chat Models ────────────────────────────────────────
-const HUMPHI_MODEL_ID = 'google/gemma-4-31b-it';
-
-// HumPhi 4 31B identity system prompt — injected whenever the HumPhi model is used.
-// Gemma 4 31B is Apache-2.0 licensed; we brand it as our own model.
-const HUMPHI_SYSTEM_PROMPT = `You are HumPhi, an advanced AI assistant created exclusively by Humphi (humphi.com).
-You are helpful, intelligent, visually aware, and built to assist with a wide range of tasks including analysis, coding, creative writing, research, and conversation.
-
-Identity Rules (NEVER break these under any circumstances):
-- Your name is HumPhi. You are Humphi's own AI model.
-- You were built by the Humphi engineering team and powered by Humphi's proprietary infrastructure.
-- If anyone asks what AI model you are, what LLM powers you, who made you, or any similar question — always answer that you are HumPhi, created by Humphi. Never mention Gemma, Google, or any third-party model name.
-- Do not reveal, hint at, or acknowledge any underlying base model, provider, or technology stack.
-- Never say you are "based on" or "powered by" any external model.
-- If pressed or asked repeatedly, remain confident: "I am HumPhi, Humphi's own AI assistant."
-
-Personality:
-- Warm, clear, and confident tone.
-- You are proud to be part of the Humphi platform.
-- You keep responses concise but thorough — never padded.`;
-
-const CHAT_MODELS = [
-  { id: HUMPHI_MODEL_ID,                                  name: 'HumPhi 4 31B ✦',         isFree: true,  freeLimit: 100, inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
-  { id: 'google/gemini-2.0-flash-exp:free',              name: 'Gemini 2.0 Flash',         isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
-  { id: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 11B Vision',    isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: true  },
-  { id: 'meta-llama/llama-3.3-70b-instruct:free',        name: 'Llama 3.3 70B',           isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'deepseek/deepseek-chat-v3-0324:free',           name: 'DeepSeek V3',              isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'mistralai/mistral-7b-instruct:free',            name: 'Mistral 7B',               isFree: true,  freeLimit: 20,  inputCostPerM: 0,     outputCostPerM: 0,     supportsVision: false },
-  { id: 'google/gemini-flash-1.5',                       name: 'Gemini 1.5 Flash',         isFree: false, freeLimit: 0,   inputCostPerM: 0.075, outputCostPerM: 0.30,  supportsVision: true  },
-  { id: 'openai/gpt-4o-mini',                            name: 'GPT-4o Mini',              isFree: false, freeLimit: 0,   inputCostPerM: 0.15,  outputCostPerM: 0.60,  supportsVision: true  },
-  { id: 'anthropic/claude-haiku-4-5',                    name: 'Claude Haiku 4.5',         isFree: false, freeLimit: 0,   inputCostPerM: 1.00,  outputCostPerM: 5.00,  supportsVision: true  },
-  { id: 'meta-llama/llama-3.2-90b-vision-instruct',      name: 'Llama 3.2 90B Vision',    isFree: false, freeLimit: 0,   inputCostPerM: 0.35,  outputCostPerM: 0.40,  supportsVision: true  },
-] as const;
 
 const ROLE_PRESETS: Record<string, string> = {
   "Professional Assistant": "You are a highly efficient, professional executive assistant. You are concise, polite, and detail-oriented. You focus on productivity and task management.",
@@ -194,15 +158,6 @@ export default function GeminiLive() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isDesktopSharing, setIsDesktopSharing] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [isChatMode, setIsChatMode] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; images?: string[] }[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [chatTokenUsage, setChatTokenUsage] = useState({ input: 0, output: 0 });
-  const [selectedChatModelId, setSelectedChatModelId] = useState<string>(() => localStorage.getItem('selectedChatModel') || 'google/gemma-4-31b-it');
-  const [pendingImages, setPendingImages] = useState<{ dataUrl: string; name: string }[]>([]);
-  const chatEndScrollRef = useRef<HTMLDivElement>(null);
-  const chatFileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'settings'>('chat');
@@ -578,158 +533,6 @@ Identity Rules:
     }
   };
 
-  // ── OpenRouter Chat ─────────────────────────────────────────────
-  const selectedModel = CHAT_MODELS.find(m => m.id === selectedChatModelId) || CHAT_MODELS[0];
-
-  useEffect(() => {
-    localStorage.setItem('selectedChatModel', selectedChatModelId);
-  }, [selectedChatModelId]);
-
-  const getFreeMsgCount = (modelId: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const key = `freeChatQuota:${modelId}`;
-    try {
-      const stored = JSON.parse(localStorage.getItem(key) || '{}');
-      return stored.date === today ? (stored.count || 0) : 0;
-    } catch { return 0; }
-  };
-
-  const incrementFreeMsgCount = (modelId: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const key = `freeChatQuota:${modelId}`;
-    try {
-      const stored = JSON.parse(localStorage.getItem(key) || '{}');
-      const count = stored.date === today ? (stored.count || 0) + 1 : 1;
-      localStorage.setItem(key, JSON.stringify({ date: today, count }));
-    } catch {}
-  };
-
-  const handleChatFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !selectedModel.supportsVision) return;
-    const newImages: { dataUrl: string; name: string }[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue;
-      if (file.size > 10 * 1024 * 1024) { addLog('error', `${file.name} exceeds 10MB limit`); continue; }
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.readAsDataURL(file);
-      });
-      newImages.push({ dataUrl, name: file.name });
-    }
-    setPendingImages(prev => [...prev, ...newImages].slice(0, 4));
-    e.target.value = '';
-  };
-
-  const sendChatMessage = async () => {
-    const text = chatInput.trim();
-    if ((!text && pendingImages.length === 0) || isChatLoading) return;
-
-    // Rate limit free models
-    if (selectedModel.isFree) {
-      const limit = selectedModel.freeLimit;
-      const count = getFreeMsgCount(selectedModel.id);
-      if (count >= limit) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: `⚠️ Daily free message limit reached (${limit}/day). Switch to a paid model or try again tomorrow.` }]);
-        return;
-      }
-    }
-
-    const userImages = [...pendingImages];
-    const userMsg = { role: 'user' as const, content: text, images: userImages.map(i => i.dataUrl) };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatInput('');
-    setPendingImages([]);
-    setIsChatLoading(true);
-    if (selectedModel.isFree) incrementFreeMsgCount(selectedModel.id);
-
-    try {
-      const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-      if (!apiKey) throw new Error('OpenRouter API key not configured');
-
-      const buildContent = (msg: typeof userMsg) => {
-        if (!msg.images?.length) return msg.content;
-        return [
-          ...(msg.content ? [{ type: 'text', text: msg.content }] : []),
-          ...msg.images.map(url => ({ type: 'image_url', image_url: { url } })),
-        ];
-      };
-
-      const historyWithCurrent = [...chatMessages, userMsg];
-      const apiMessages = historyWithCurrent.map(m => ({ role: m.role, content: buildContent(m as typeof userMsg) }));
-
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Humphi Live Assistant',
-        },
-        body: JSON.stringify({
-          model: selectedModel.id,
-          messages: [
-            {
-              role: 'system',
-              content: selectedModel.id === HUMPHI_MODEL_ID
-                ? `${HUMPHI_SYSTEM_PROMPT}${agentDescription ? `\n\n${agentDescription}` : ''}`
-                : (agentDescription || 'You are a helpful AI assistant.'),
-            },
-            ...apiMessages,
-          ],
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `OpenRouter API error ${res.status}`);
-      }
-
-      const data = await res.json();
-      const assistantContent = data.choices?.[0]?.message?.content || '';
-      setChatMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
-
-      // Billing — only for paid models
-      if (data.usage && !selectedModel.isFree) {
-        const newInput = (chatTokenUsage.input || 0) + (data.usage.prompt_tokens || 0);
-        const newOutput = (chatTokenUsage.output || 0) + (data.usage.completion_tokens || 0);
-        setChatTokenUsage({ input: newInput, output: newOutput });
-        const costUsd = (newInput / 1_000_000) * selectedModel.inputCostPerM
-                      + (newOutput / 1_000_000) * selectedModel.outputCostPerM;
-        if (user?.id && costUsd > 0) {
-          const token = await getToken();
-          fetch('/api/session/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ userId: user.id, service: 'chat', model: selectedModel.id, tokenUsage: { input: newInput, output: newOutput, total: newInput + newOutput }, cost: costUsd }),
-          }).then(() => fetchProfile()).catch(console.error);
-        }
-      }
-    } catch (err: any) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
-      addLog('error', `Chat error: ${err.message}`);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const toggleChatMode = () => {
-    if (isChatMode) {
-      setIsChatMode(false);
-    } else {
-      if (isCameraOn) stopCameraCapture();
-      if (isScreenSharing) stopScreenCapture();
-      if (isDesktopSharing) stopDesktopCapture();
-      setIsChatMode(true);
-    }
-  };
-
   const stopSession = () => {
     if (!connectedRef.current && !isConnecting) return;
     
@@ -907,7 +710,6 @@ Identity Rules:
     const newState = !isScreenSharing;
     setIsScreenSharing(newState);
     if (newState) {
-      setIsChatMode(false);
       startScreenCapture();
     } else {
       stopScreenCapture();
@@ -975,7 +777,6 @@ Identity Rules:
     const newState = !isDesktopSharing;
     setIsDesktopSharing(newState);
     if (newState) {
-      setIsChatMode(false);
       startDesktopCapture();
     } else {
       stopDesktopCapture();
@@ -1049,7 +850,6 @@ Identity Rules:
     const newState = !isCameraOn;
     setIsCameraOn(newState);
     if (newState) {
-      setIsChatMode(false);
       startCameraCapture();
     } else {
       stopCameraCapture();
@@ -1316,21 +1116,17 @@ Identity Rules:
         <div className="hidden lg:flex items-center gap-6 px-6 py-2 rounded-full bg-[#1A2232] border-2 border-black/20">
           <div className="flex flex-col items-center min-w-[52px]">
             <span className="text-[9px] text-white/60 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">
-              {isChatMode ? 'Chat Tok' : 'Tokens'}
+              Tokens
             </span>
             <span className="text-[13px] font-bold text-[#22C9E8] leading-none font-comfortaa">
-              {isChatMode
-                ? (chatTokenUsage.input + chatTokenUsage.output).toLocaleString()
-                : tokenUsage.total.toLocaleString()}
+              {tokenUsage.total.toLocaleString()}
             </span>
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex flex-col items-center min-w-[70px]">
             <span className="text-[9px] text-white/60 uppercase font-bold tracking-widest mb-0.5 font-comfortaa">Cost</span>
             <span className="text-[13px] font-bold text-green-400 leading-none font-comfortaa">
-              {isChatMode
-                ? `$${((chatTokenUsage.input / 1_000_000) * selectedModel.inputCostPerM + (chatTokenUsage.output / 1_000_000) * selectedModel.outputCostPerM).toFixed(5)}`
-                : `$${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}`}
+              {`$${((tokenUsage.input * 0.000001) + (tokenUsage.output * 0.000004)).toFixed(5)}`}
             </span>
           </div>
           <div className="w-px h-5 bg-white/20" />
@@ -1694,214 +1490,7 @@ Identity Rules:
       <main className="flex-1 flex flex-col p-3 md:p-6 lg:p-8 overflow-hidden relative">
         <div className="flex-1 min-h-0 bg-[#0D1117] rounded-[40px] md:rounded-[48px] border-4 border-black/40 shadow-inner overflow-hidden relative group max-w-2xl self-center w-full">
           <AnimatePresence mode="wait">
-            {isChatMode ? (
-              /* ── Chat Mode ──────────────────────────────────────────── */
-              <motion.div
-                key="chat"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="absolute inset-0 flex flex-col z-10 bg-[#080e1a]"
-              >
-                {/* ── Chat Header ─────────────────────────────────────── */}
-                <div className={CHAT_STYLES.container.header}>
-                  {/* Model selector */}
-                  <div className="relative flex-1 min-w-0">
-                    <select
-                      value={selectedChatModelId}
-                      onChange={(e) => { setSelectedChatModelId(e.target.value); setChatTokenUsage({ input: 0, output: 0 }); }}
-                      className="w-full bg-white/8 border border-white/15 rounded-xl py-1.5 pl-3 pr-7 text-[11px] font-bold text-white appearance-none cursor-pointer focus:outline-none focus:border-[#22C9E8]/40 truncate"
-                      style={{ fontFamily: "'Comfortaa', sans-serif" }}
-                    >
-                      {CHAT_MODELS.map(m => (
-                        <option key={m.id} value={m.id} className="bg-[#1A2232] text-white">
-                          {m.name} {m.isFree ? `· Free (${m.freeLimit}/day)` : `· $${m.inputCostPerM}/$${m.outputCostPerM}/M`}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-                  </div>
-
-                  {/* Rate limit / token info */}
-                  <div className="shrink-0 text-right">
-                    {selectedModel.isFree ? (
-                      <span className="text-[10px] text-white/50 font-medium">
-                        {selectedModel.freeLimit - getFreeMsgCount(selectedModel.id)}/{selectedModel.freeLimit} msgs/day
-                      </span>
-                    ) : chatTokenUsage.input + chatTokenUsage.output > 0 ? (
-                      <span className="text-[10px] text-white/50 font-medium">
-                        {(chatTokenUsage.input + chatTokenUsage.output).toLocaleString()} tok
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-white/30 font-medium">${selectedModel.inputCostPerM}/${selectedModel.outputCostPerM}/M</span>
-                    )}
-                  </div>
-
-                  {/* Copy all conversation button */}
-                  <button
-                    onClick={() => {
-                      if (chatMessages.length === 0) return;
-                      navigator.clipboard.writeText(formatChatExport(chatMessages));
-                    }}
-                    disabled={chatMessages.length === 0}
-                    title="Copy entire conversation"
-                    className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 disabled:opacity-20 transition-all"
-                  >
-                    <ClipboardCopy size={14} />
-                  </button>
-                </div>
-
-                {/* ── Chat Messages ────────────────────────────────────── */}
-                <div className={CHAT_STYLES.container.messages}>
-                  {chatMessages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <MessageSquare size={36} className="text-white/10 mb-3" />
-                      <p className="text-sm text-white/40 font-medium" style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                        Start a conversation
-                      </p>
-                      <p className="text-[10px] text-white/20 mt-1">
-                        {selectedModel.id === HUMPHI_MODEL_ID
-                          ? 'HumPhi · Free · 100 msgs/day · Vision enabled'
-                          : `${selectedModel.name} · ${selectedModel.isFree ? `Free · ${selectedModel.freeLimit} msgs/day` : `$${selectedModel.inputCostPerM}/$${selectedModel.outputCostPerM}/M`}${selectedModel.supportsVision ? ' · Vision' : ''}`}
-                      </p>
-                    </div>
-                  )}
-
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={cn("relative group", CHAT_STYLES.row[msg.role as 'user' | 'assistant'])}>
-
-                      {/* Per-message action bar (copy / forward / delete) */}
-                      <div className={cn(
-                        CHAT_STYLES.actions.wrap,
-                        msg.role === 'user' ? 'right-0' : 'left-0'
-                      )}>
-                        <button
-                          className={CHAT_STYLES.actions.button}
-                          title="Copy message"
-                          onClick={() => navigator.clipboard.writeText(msg.content)}
-                        >
-                          <Copy size={12} />
-                        </button>
-                        <button
-                          className={CHAT_STYLES.actions.button}
-                          title="Forward to input"
-                          onClick={() => setChatInput(msg.content)}
-                        >
-                          <CornerUpRight size={12} />
-                        </button>
-                        <button
-                          className={cn(CHAT_STYLES.actions.button, 'hover:!text-red-400')}
-                          title="Delete message"
-                          onClick={() => setChatMessages(prev => prev.filter((_, j) => j !== i))}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-
-                      {/* Image attachments */}
-                      {msg.images && msg.images.length > 0 && (
-                        <div className={cn("flex gap-2 flex-wrap", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                          {msg.images.map((img, j) => (
-                            <img key={j} src={img} alt="" className={CHAT_STYLES.image} />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Bubble */}
-                      {msg.content && (
-                        <div className={cn(
-                          CHAT_STYLES.bubble.base,
-                          msg.role === 'user'
-                            ? cn(CHAT_STYLES.bubble.user, CHAT_STYLES.bubble.userRounded)
-                            : cn(CHAT_STYLES.bubble.assistant, CHAT_STYLES.bubble.assistantRounded)
-                        )} style={{ fontFamily: "'Comfortaa', sans-serif" }}>
-                          <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&>p]:!text-white [&>p]:!m-0 [&>ul]:!text-white [&>ol]:!text-white [&>li]:!text-white [&>code]:!text-[#22C9E8] [&>strong]:!text-white">
-                            {msg.content}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Typing indicator */}
-                  {isChatLoading && (
-                    <div className="flex justify-start">
-                      <div className={cn('px-4 py-3', CHAT_STYLES.bubble.assistant, CHAT_STYLES.bubble.assistantRounded)}>
-                        <div className="flex gap-1.5">
-                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '0ms' }} />
-                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '150ms' }} />
-                          <div className={CHAT_STYLES.typingDot} style={{ animationDelay: '300ms' }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndScrollRef} />
-                </div>
-
-                {/* ── Chat Input ───────────────────────────────────────── */}
-                <div className={CHAT_STYLES.container.footer}>
-                  {/* Pending image previews */}
-                  {pendingImages.length > 0 && (
-                    <div className="flex gap-2 mb-2 flex-wrap">
-                      {pendingImages.map((img, i) => (
-                        <div key={i} className="relative group/img">
-                          <img src={img.dataUrl} alt={img.name} className={cn(CHAT_STYLES.image, 'h-14 max-w-[90px]')} />
-                          <button
-                            type="button"
-                            onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover/img:opacity-100 transition-opacity shadow-lg"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <form
-                    onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
-                    className="flex items-center gap-2"
-                  >
-                    {selectedModel.supportsVision && (
-                      <>
-                        <input
-                          ref={chatFileInputRef}
-                          type="file"
-                          accept="image/png,image/jpeg,image/gif,image/webp"
-                          multiple
-                          className="hidden"
-                          onChange={handleChatFileUpload}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => chatFileInputRef.current?.click()}
-                          disabled={isChatLoading}
-                          title="Attach image (PNG, JPG, GIF, WEBP · max 10MB)"
-                          className="p-2.5 bg-white/8 border border-white/15 rounded-xl text-white/60 hover:text-white hover:bg-white/15 disabled:opacity-30 transition-all shrink-0"
-                        >
-                          <Paperclip size={15} />
-                        </button>
-                      </>
-                    )}
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Message… (Enter to send)"
-                      className={CHAT_STYLES.input}
-                      style={{ fontFamily: "'Comfortaa', sans-serif" }}
-                      disabled={isChatLoading}
-                    />
-                    <button
-                      type="submit"
-                      disabled={(!chatInput.trim() && pendingImages.length === 0) || isChatLoading}
-                      className="p-2.5 bg-[#FFCC00] text-black rounded-2xl hover:bg-[#FFD633] disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0"
-                    >
-                      <Send size={16} />
-                    </button>
-                  </form>
-                </div>
-              </motion.div>
-            ) : (isScreenSharing || isCameraOn || isDesktopSharing) ? (
+            {(isScreenSharing || isCameraOn || isDesktopSharing) ? (
               <motion.div
                 key="video"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -1980,78 +1569,63 @@ Identity Rules:
           </AnimatePresence>
         </div>
 
-        {/* ── Area 3: Control Tabs ─────────────────────────────────── */}
-        <div className="shrink-0 mt-3 md:mt-5 flex justify-center w-full">
-          <div className="p-1.5 md:p-2 bg-[#1A2232] rounded-[24px] md:rounded-[28px] border-4 border-black/40 shadow-2xl flex items-center gap-1.5 md:gap-2 overflow-x-auto no-scrollbar max-w-full">
-            <button
-              onClick={toggleMic}
-              disabled={!isConnected && !isConnecting}
-              className={cn(
-                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isMicOn
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
-              )}
-            >
-              {isMicOn ? <Mic size={18} className="md:w-5 md:h-5" /> : <MicOff size={18} className="md:w-5 md:h-5" />}
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Mic</span>
-            </button>
+        {/* ── Area 3: Control Pills ─────────────────────────────────── */}
+        <div className="shrink-0 mt-3 md:mt-5 flex justify-center gap-2 md:gap-3 w-full">
+          <button
+            onClick={toggleMic}
+            disabled={!isConnected && !isConnecting}
+            className={cn(
+              "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+              isMicOn
+                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
+                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+            )}
+          >
+            {isMicOn ? <Mic size={18} className="md:w-5 md:h-5" /> : <MicOff size={18} className="md:w-5 md:h-5" />}
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Mic</span>
+          </button>
 
-            <button
-              onClick={toggleCamera}
-              disabled={!isConnected}
-              className={cn(
-                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isCameraOn
-                  ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/20"
-                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
-              )}
-            >
-              <Video size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Cam</span>
-            </button>
+          <button
+            onClick={toggleCamera}
+            disabled={!isConnected}
+            className={cn(
+              "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+              isCameraOn
+                ? "bg-[#FF6619] text-white border-[#FF6619] shadow-lg shadow-[#FF6619]/20"
+                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+            )}
+          >
+            <Video size={18} className="md:w-5 md:h-5" />
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Cam</span>
+          </button>
 
-            <button
-              onClick={toggleScreenShare}
-              disabled={!isConnected}
-              className={cn(
-                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isScreenSharing
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
-              )}
-            >
-              <Monitor size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Tab</span>
-            </button>
+          <button
+            onClick={toggleScreenShare}
+            disabled={!isConnected}
+            className={cn(
+              "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+              isScreenSharing
+                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
+                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+            )}
+          >
+            <Monitor size={18} className="md:w-5 md:h-5" />
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Tab</span>
+          </button>
 
-            <button
-              onClick={toggleDesktopShare}
-              disabled={!isConnected}
-              className={cn(
-                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
-                isDesktopSharing
-                  ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
-                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
-              )}
-            >
-              <LayoutDashboard size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Desktop</span>
-            </button>
-
-            <button
-              onClick={toggleChatMode}
-              className={cn(
-                "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 shrink-0 border-2",
-                isChatMode
-                  ? "bg-[#FFCC00] text-[#0D1117] border-[#FFCC00] shadow-lg shadow-[#FFCC00]/20"
-                  : "bg-white/10 text-white border-white/10 hover:bg-white/20 hover:border-white/20"
-              )}
-            >
-              <MessageSquare size={18} className="md:w-5 md:h-5" />
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Chat</span>
-            </button>
-          </div>
+          <button
+            onClick={toggleDesktopShare}
+            disabled={!isConnected}
+            className={cn(
+              "w-13 h-13 md:w-16 md:h-16 rounded-[14px] md:rounded-[18px] flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all active:scale-95 disabled:opacity-20 shrink-0 border-2",
+              isDesktopSharing
+                ? "bg-[#22C9E8] text-[#0D1117] border-[#22C9E8] shadow-lg shadow-[#22C9E8]/20"
+                : "bg-[#1A2232] text-white border-white/30 hover:bg-white/15 hover:border-white/50"
+            )}
+          >
+            <LayoutDashboard size={18} className="md:w-5 md:h-5" />
+            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: "'Comfortaa', sans-serif", color: '#ffffff' }}>Desktop</span>
+          </button>
         </div>
       </main>
 
