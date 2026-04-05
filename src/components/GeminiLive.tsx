@@ -215,6 +215,7 @@ export default function GeminiLive() {
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [micVolume, setMicVolume] = useState(0);
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
+  const tokenUsageRef = useRef({ input: 0, output: 0, total: 0 }); // always-current, avoids stale closure in billing
   const [currentGrantId, setCurrentGrantId] = useState<string | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
@@ -417,6 +418,7 @@ Identity Rules:
         total: message.usageMetadata.totalTokenCount || 0
       };
       setTokenUsage(usage);
+      tokenUsageRef.current = usage; // keep ref in sync for billing
     }
   };
 
@@ -434,6 +436,7 @@ Identity Rules:
     setIsConnecting(true);
     setMessages([]);
     setTokenUsage({ input: 0, output: 0, total: 0 });
+    tokenUsageRef.current = { input: 0, output: 0, total: 0 };
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
@@ -539,18 +542,20 @@ Identity Rules:
       const transcript = messages.map(m => `[${m.role}] ${m.text}`).join('\n');
       const token = await getToken();
 
-      addLog('info', 'Saving session and processing billing...', { tokens: tokenUsage });
+      // Use the ref — always holds the latest usage even if state is stale
+      const finalUsage = tokenUsageRef.current;
+      addLog('info', 'Saving session and processing billing...', { tokens: finalUsage });
 
       const res = await fetch('/api/session/save', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           userId: user.id,
           transcript,
-          tokenUsage,
+          tokenUsage: finalUsage,
           service: 'live',
           model: MODEL_NAME,
           agentRole,

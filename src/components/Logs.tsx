@@ -42,8 +42,8 @@ function friendlyModel(model?: string): string {
   return model.split('/').pop()?.replace(/-/g, ' ') || model;
 }
 
-function friendlyService(meta: UsageLog['metadata']): 'live' | 'chat' {
-  return meta?.service === 'chat' ? 'chat' : 'live';
+function friendlyService(meta: UsageLog['metadata']): 'live' | 'ai' {
+  return meta?.service === 'chat' ? 'ai' : 'live';
 }
 
 function formatDate(iso: string) {
@@ -61,7 +61,7 @@ const LogsPage: React.FC = () => {
 
   const [logs, setLogs]       = useState<UsageLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter]   = useState<'all' | 'live' | 'chat'>('all');
+  const [filter, setFilter]   = useState<'all' | 'live' | 'ai'>('all');
 
   useEffect(() => {
     if (!user?.id) return;
@@ -93,8 +93,8 @@ const LogsPage: React.FC = () => {
     const totalCost   = logs.reduce((s, l) => s + Math.abs(parseFloat(l.amount || '0')), 0);
     const totalTokens = logs.reduce((s, l) => s + parseTokens(l.metadata).total, 0);
     const liveSessions = logs.filter(l => friendlyService(l.metadata) === 'live').length;
-    const chatSessions = logs.filter(l => friendlyService(l.metadata) === 'chat').length;
-    return { totalCost, totalTokens, liveSessions, chatSessions, sessions: logs.length };
+    const aiSessions   = logs.filter(l => friendlyService(l.metadata) === 'ai').length;
+    return { totalCost, totalTokens, liveSessions, aiSessions, sessions: logs.length };
   }, [logs]);
 
   return (
@@ -138,8 +138,8 @@ const LogsPage: React.FC = () => {
             textColor: '#ffffff',
           },
           {
-            label: 'Live / Chat',
-            value: `${stats.liveSessions} / ${stats.chatSessions}`,
+            label: 'Live / AI',
+            value: `${stats.liveSessions} / ${stats.aiSessions}`,
             icon: Zap,
             bg: '#ffffff',
             color: '#FF6619',
@@ -174,7 +174,7 @@ const LogsPage: React.FC = () => {
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
           <h2 className="text-sm font-black text-[#0D1117]">Session Log</h2>
           <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#F1F5F9' }}>
-            {(['all', 'live', 'chat'] as const).map(f => (
+            {(['all', 'live', 'ai'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -258,7 +258,7 @@ const LogsPage: React.FC = () => {
                             color:      svc === 'live' ? '#FF6619' : '#0AABCA',
                           }}
                         >
-                          {svc === 'live' ? 'Live Session' : 'Chat'}
+                          {svc === 'live' ? 'Live Session' : 'HumPhi AI'}
                         </span>
                         <span
                           className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"

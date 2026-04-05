@@ -9,7 +9,7 @@ export const profiles = pgTable("profiles", {
 export const wallets = pgTable("wallets", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").unique().notNull(),
-  balance: numeric("balance", { precision: 12, scale: 2 }).default("0.00").notNull(),
+  balance: numeric("balance", { precision: 18, scale: 8 }).default("0.00000000").notNull(),
   currency: text("currency").default("USD").notNull(),
   version: integer("version").default(1).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -19,7 +19,7 @@ export const wallets = pgTable("wallets", {
 export const transactions = pgTable("transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
   walletId: uuid("wallet_id").references(() => wallets.id, { onDelete: "cascade" }).notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 18, scale: 8 }).notNull(),
   type: text("type").notNull(), // 'topup' or 'usage'
   status: text("status").default("pending").notNull(), // 'completed', 'pending', 'failed'
   providerSessionId: text("provider_session_id").unique(),
