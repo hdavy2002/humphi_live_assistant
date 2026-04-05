@@ -36,6 +36,8 @@ export const sessionLogs = defineDatasource("session_logs", {
     inputTokens:   t.uint32(),
     outputTokens:  t.uint32(),
     totalTokens:   t.uint32(),
+    audioTokens:   t.uint32(),                   // live only: estimated audio input tokens (32/s)
+    videoTokens:   t.uint32(),                   // live only: estimated video input tokens (263/s)
     cost:          t.float64(),
     status:        t.string().lowCardinality(),  // 'completed' | 'failed'
     durationSecs:  t.uint32(),                   // session wall-clock duration in seconds
@@ -76,6 +78,8 @@ export const userSessionLogs = defineEndpoint("user_session_logs", {
           inputTokens   AS input_tokens,
           outputTokens  AS output_tokens,
           totalTokens   AS total_tokens,
+          audioTokens   AS audio_tokens,
+          videoTokens   AS video_tokens,
           cost,
           status,
           durationSecs  AS duration_secs,
@@ -98,6 +102,8 @@ export const userSessionLogs = defineEndpoint("user_session_logs", {
     input_tokens:  t.uint32(),
     output_tokens: t.uint32(),
     total_tokens:  t.uint32(),
+    audio_tokens:  t.uint32(),
+    video_tokens:  t.uint32(),
     cost:          t.float64(),
     status:        t.string(),
     duration_secs: t.uint32(),

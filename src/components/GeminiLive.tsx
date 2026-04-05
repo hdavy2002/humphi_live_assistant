@@ -217,6 +217,7 @@ export default function GeminiLive() {
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
   const tokenUsageRef   = useRef({ input: 0, output: 0, total: 0 }); // always-current, avoids stale closure in billing
   const sessionStartRef = useRef<number | null>(null);                // wall-clock ms when session connected
+  const videoWasActiveRef = useRef(false);                            // true if camera/screen was ever on this session
   const [currentGrantId, setCurrentGrantId] = useState<string | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
@@ -438,6 +439,7 @@ Identity Rules:
     setMessages([]);
     setTokenUsage({ input: 0, output: 0, total: 0 });
     tokenUsageRef.current = { input: 0, output: 0, total: 0 };
+    videoWasActiveRef.current = false;
     addLog('system', 'Initializing secure WebSocket connection...');
     
     try {
@@ -562,6 +564,7 @@ Identity Rules:
           transcript,
           tokenUsage: finalUsage,
           durationSecs,
+          hasVideo: videoWasActiveRef.current,
           service: 'live',
           model: MODEL_NAME,
           agentRole,
@@ -735,6 +738,7 @@ Identity Rules:
       }, 2000);
 
       stream.getVideoTracks()[0].onended = () => stopScreenCapture();
+      videoWasActiveRef.current = true;
       addLog('info', 'Screen capture started');
     } catch (err) {
       addLog('error', 'Failed to start screen capture', err);
@@ -802,6 +806,7 @@ Identity Rules:
       }, 2000);
 
       stream.getVideoTracks()[0].onended = () => stopDesktopCapture();
+      videoWasActiveRef.current = true;
       addLog('info', 'Desktop capture started');
     } catch (err) {
       addLog('error', 'Failed to start desktop capture', err);
@@ -875,6 +880,7 @@ Identity Rules:
 
       stream.getVideoTracks()[0].onended = () => stopCameraCapture();
       setIsCameraOn(true);
+      videoWasActiveRef.current = true;
       addLog('info', 'Camera capture started');
     } catch (err) {
       addLog('error', 'Failed to start camera capture', err);

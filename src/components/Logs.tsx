@@ -15,6 +15,8 @@ interface UsageLog {
   type: string;
   status: string;
   duration_secs?: number;
+  audio_tokens?: number;
+  video_tokens?: number;
   metadata: {
     service?: string;
     model?: string;
@@ -29,12 +31,14 @@ interface UsageLog {
 // ── Normalize Tinybird rows (snake_case) → UsageLog shape ───────────
 function normalizeTinybirdRow(row: any): UsageLog {
   return {
-    id:           row.id,
-    amount:       String(-(row.cost ?? 0)),
-    type:         'usage',
-    status:       row.status ?? 'completed',
-    created_at:   row.created_at,
+    id:            row.id,
+    amount:        String(-(row.cost ?? 0)),
+    type:          'usage',
+    status:        row.status ?? 'completed',
+    created_at:    row.created_at,
     duration_secs: row.duration_secs ?? 0,
+    audio_tokens:  row.audio_tokens  ?? 0,
+    video_tokens:  row.video_tokens  ?? 0,
     metadata: {
       service:      row.service,
       model:        row.model,
@@ -228,10 +232,11 @@ const LogsPage: React.FC = () => {
 
         {/* Column headers */}
         <div className="grid px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest"
-          style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 80px 90px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
-          <span>Session</span>
+          style={{ gridTemplateColumns: '1fr 115px 82px 80px 72px 72px 75px 88px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
+          <span>HumPhi Live</span>
           <span className="text-center">Date &amp; Time</span>
-          <span className="text-right">Input</span>
+          <span className="text-right">Audio Tokens</span>
+          <span className="text-right">Video Tokens</span>
           <span className="text-right">Output</span>
           <span className="text-right">Total</span>
           <span className="text-right">Duration</span>
@@ -266,6 +271,12 @@ const LogsPage: React.FC = () => {
               const duration = formatDuration(log.duration_secs ?? 0);
               const { date, time } = formatDate(log.created_at);
 
+              const audioTokens = log.audio_tokens ?? 0;
+              const videoTokens = log.video_tokens ?? 0;
+              const mediaType   = svc === 'live'
+                ? (videoTokens > 0 ? 'audio + video' : 'audio')
+                : null;
+
               return (
                 <motion.div
                   key={log.id}
@@ -273,7 +284,7 @@ const LogsPage: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   className="grid items-center px-5 py-3.5 hover:bg-black/[0.02] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 80px 90px' }}
+                  style={{ gridTemplateColumns: '1fr 115px 82px 80px 72px 72px 75px 88px' }}
                 >
                   {/* Service + model */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -288,7 +299,7 @@ const LogsPage: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-[#0D1117] truncate">{model}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span
                           className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md"
                           style={{
@@ -298,6 +309,17 @@ const LogsPage: React.FC = () => {
                         >
                           {svc === 'live' ? 'Live Session' : 'HumPhi AI'}
                         </span>
+                        {mediaType && (
+                          <span
+                            className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+                            style={{
+                              background: videoTokens > 0 ? 'rgba(139,92,246,0.1)' : 'rgba(34,201,232,0.1)',
+                              color:      videoTokens > 0 ? '#7c3aed'              : '#0AABCA',
+                            }}
+                          >
+                            {mediaType}
+                          </span>
+                        )}
                         <span
                           className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
                           style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
@@ -314,9 +336,18 @@ const LogsPage: React.FC = () => {
                     <p className="text-[10px] mt-0.5" style={{ color: 'rgba(0,0,0,0.35)' }}>{time}</p>
                   </div>
 
-                  {/* Input tokens */}
+                  {/* Audio tokens */}
                   <div className="text-right">
-                    <span className="text-sm font-bold text-[#0D1117]">{tokens.input > 0 ? tokens.input.toLocaleString() : '—'}</span>
+                    <span className="text-sm font-bold" style={{ color: audioTokens > 0 ? '#0D1117' : 'rgba(0,0,0,0.25)' }}>
+                      {audioTokens > 0 ? audioTokens.toLocaleString() : '—'}
+                    </span>
+                  </div>
+
+                  {/* Video tokens */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold" style={{ color: videoTokens > 0 ? '#7c3aed' : 'rgba(0,0,0,0.25)' }}>
+                      {videoTokens > 0 ? videoTokens.toLocaleString() : '—'}
+                    </span>
                   </div>
 
                   {/* Output tokens */}

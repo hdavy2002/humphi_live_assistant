@@ -80,6 +80,7 @@ function getTb() {
 async function logSessionToTinybird(event: {
   id: string; userId: string; service: string; model: string;
   inputTokens: number; outputTokens: number; totalTokens: number;
+  audioTokens: number; videoTokens: number;
   cost: number; status: string; durationSecs: number; createdAt: string;
 }): Promise<void> {
   if (!TB_TOKEN) return;
@@ -637,6 +638,8 @@ app.post("/chat", requireAuth, async (c) => {
           inputTokens,
           outputTokens,
           totalTokens:  inputTokens + outputTokens,
+          audioTokens:  0,
+          videoTokens:  0,
           cost,
           status:       'completed',
           durationSecs: Math.round((Date.now() - chatStart) / 1000),
@@ -868,7 +871,7 @@ app.post("/gemini/token", requireAuth, async (c) => {
 
 app.post("/session/save", requireAuth, async (c) => {
   const serverUserId = getAuth(c)!.userId!;
-  const { userId, newHandle, transcript, tokenUsage, durationSecs, service, model, agentRole, agentName, grantId } = await c.req.json();
+  const { userId, newHandle, transcript, tokenUsage, durationSecs, hasVideo, service, model, agentRole, agentName, grantId } = await c.req.json();
 
   // Enforce server-authoritative userId from JWT — ignore client-supplied one
   if (userId && userId !== serverUserId) return c.json({ error: "Forbidden" }, 403);
@@ -908,13 +911,22 @@ app.post("/session/save", requireAuth, async (c) => {
   // Always compute cost from tokenUsage — capped to prevent abuse.
   // grantVerified only gates whether the session counter was properly managed;
   // billing should never be silently zeroed by a Redis miss.
-  let inputTokens  = Math.min(tokenUsage?.input  || 0, 10_000_000);
   const outputTokens = Math.min(tokenUsage?.output || 0, 10_000_000);
-  // Gemini Live API does not report promptTokenCount for audio streams.
-  // Estimate audio input at 32 tokens/second (per Google's published rate).
-  if (inputTokens === 0 && durationSecs > 0 && (!service || service === 'live')) {
-    inputTokens = Math.min(Math.round(durationSecs * 32), 10_000_000);
-    console.log(`[SessionSave] Estimating ${inputTokens} audio input tokens from ${durationSecs}s duration`);
+  // Gemini Live API does not report promptTokenCount reliably for audio/video streams.
+  // Estimate from session duration using Google's published token rates:
+  //   Audio input : 32  tokens/second
+  //   Video input : 263 tokens/second (frames sent every ~2s at 5fps)
+  const safeDuration = Math.max(0, Math.round(durationSecs || 0));
+  let audioTokens = 0;
+  let videoTokens = 0;
+  if ((!service || service === 'live') && safeDuration > 0) {
+    audioTokens = Math.round(safeDuration * 32);
+    videoTokens = hasVideo ? Math.round(safeDuration * 263) : 0;
+    console.log(`[SessionSave] Estimated tokens — audio: ${audioTokens}, video: ${videoTokens} (hasVideo=${hasVideo})`);
+  }
+  let inputTokens = Math.min(tokenUsage?.input || 0, 10_000_000);
+  if (inputTokens === 0 && (!service || service === 'live')) {
+    inputTokens = Math.min(audioTokens + videoTokens, 10_000_000);
   }
   const computedCost = (inputTokens * LIVE_INPUT_COST) + (outputTokens * LIVE_OUTPUT_COST);
 
@@ -958,9 +970,11 @@ app.post("/session/save", requireAuth, async (c) => {
     inputTokens,
     outputTokens,
     totalTokens:  inputTokens + outputTokens,
+    audioTokens,
+    videoTokens,
     cost:         computedCost,
     status:       'completed',
-    durationSecs: Math.max(0, Math.round(durationSecs || 0)),
+    durationSecs: safeDuration,
     createdAt:    new Date().toISOString(),
   });
   invalidateLogsCache(billingUserId);
