@@ -52,6 +52,49 @@ const sessionGrantKey = (gid: string) => `gemini:grant:${gid}`;
 const LIVE_INPUT_COST  = 0.000001;  // $1 / 1M input tokens
 const LIVE_OUTPUT_COST = 0.000004;  // $4 / 1M output tokens
 
+// ── Tinybird ──────────────────────────────────────────────────────────────────
+const TINYBIRD_API_KEY = (process.env.TINYBIRD_API_KEY || '').trim();
+const TINYBIRD_BASE    = 'https://api.tinybird.co';
+const TB_LOGS_CACHE_TTL = 7200; // 2 hours
+
+interface TinybirdSessionEvent {
+  id:           string;
+  userId:       string;
+  service:      string;
+  model:        string;
+  inputTokens:  number;
+  outputTokens: number;
+  totalTokens:  number;
+  cost:         number;
+  status:       string;
+  createdAt:    string;
+}
+
+// Fire-and-forget — never blocks the response, never throws
+async function logSessionToTinybird(event: TinybirdSessionEvent): Promise<void> {
+  if (!TINYBIRD_API_KEY) return;
+  try {
+    await fetch(`${TINYBIRD_BASE}/v0/events?name=session_logs`, {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${TINYBIRD_API_KEY}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(event),
+    });
+  } catch (err) {
+    console.error('[Tinybird] Ingest failed (non-fatal):', err);
+  }
+}
+
+// Invalidate a user's logs cache in Redis (call after each new session write)
+function invalidateLogsCache(userId: string): void {
+  if (!redis) return;
+  redis.del(`logs:${userId}:all`).catch(() => {});
+  redis.del(`logs:${userId}:live`).catch(() => {});
+  redis.del(`logs:${userId}:ai`).catch(() => {});
+}
+
 const app = new Hono().basePath("/api");
 
 // --- Global Auth Middleware ---
@@ -562,16 +605,26 @@ app.post("/chat", requireAuth, async (c) => {
             const profile = await walletUseCase.getProfile(userId);
             if (profile) {
               const profileRepo = new DrizzleProfileRepository();
-              const transactionRepo = new DrizzleTransactionRepository();
               await profileRepo.updateBalance(userId, Math.max(0, (profile.walletBalance || 0) - cost));
-              await transactionRepo.create({
-                amount: -cost, type: 'usage', status: 'completed',
-                metadata: { userId, service: 'chat', model: HUMPHI_CHAT_MODEL, inputTokens, outputTokens },
-              });
               await invalidate(cacheKeys.profile(userId));
             }
           } catch (err: any) { console.error("[Chat] Billing failed:", err.message); }
         }
+
+        // ── Log to Tinybird (fire-and-forget) ─────────────────────
+        logSessionToTinybird({
+          id:           crypto.randomUUID(),
+          userId,
+          service:      'chat',
+          model:        HUMPHI_CHAT_MODEL,
+          inputTokens,
+          outputTokens,
+          totalTokens:  inputTokens + outputTokens,
+          cost,
+          status:       'completed',
+          createdAt:    new Date().toISOString(),
+        });
+        invalidateLogsCache(userId);
 
         // ── Sync conversation to Mem0 via Inngest ─────────────────
         if (fullContent) {
@@ -657,13 +710,53 @@ app.delete("/chat/session/:id", requireAuth, async (c) => {
   } catch (err: any) { return c.json({ error: err.message }, 500); }
 });
 
-// GET /api/usage/logs — consumer usage history (usage transactions for a user)
+// GET /api/usage/logs — consumer usage history
+// Priority: Redis cache → Tinybird → Neon fallback
 app.get("/usage/logs", requireAuth, async (c) => {
-  const userId = c.req.query("userId");
-  const auth   = getAuth(c);
+  const userId  = c.req.query("userId");
+  const service = c.req.query("service") || 'all';
+  const auth    = getAuth(c);
   if (!userId) return c.json({ error: "Missing userId" }, 400);
   if (auth?.userId !== userId) return c.json({ error: "Forbidden" }, 403);
 
+  const cacheKey = `logs:${userId}:${service}`;
+
+  // ── 1. Redis cache ─────────────────────────────────────────────
+  if (redis) {
+    try {
+      const cached = await redis.get<string>(cacheKey);
+      if (cached) {
+        const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
+        return c.json(data);
+      }
+    } catch {}
+  }
+
+  // ── 2. Tinybird (primary store) ────────────────────────────────
+  if (TINYBIRD_API_KEY) {
+    try {
+      const params = new URLSearchParams({
+        token:  TINYBIRD_API_KEY,
+        userId,
+        limit:  '200',
+        ...(service !== 'all' ? { service } : {}),
+      });
+      const tbRes = await fetch(
+        `${TINYBIRD_BASE}/v0/pipes/user_session_logs.json?${params}`
+      );
+      if (tbRes.ok) {
+        const tbData = await tbRes.json();
+        const rows   = tbData.data ?? [];
+        if (redis) redis.set(cacheKey, JSON.stringify(rows), { ex: TB_LOGS_CACHE_TTL }).catch(() => {});
+        return c.json(rows);
+      }
+      console.warn('[Tinybird] Query returned non-OK, falling back to Neon:', tbRes.status);
+    } catch (err) {
+      console.error('[Tinybird] Query failed, falling back to Neon:', err);
+    }
+  }
+
+  // ── 3. Neon fallback (if Tinybird down or not yet configured) ──
   try {
     const rows = await db.execute(sql`
       SELECT
@@ -681,7 +774,9 @@ app.get("/usage/logs", requireAuth, async (c) => {
       ORDER BY t.created_at DESC
       LIMIT 200
     `);
-    return c.json(Array.isArray(rows) ? rows : (rows as any).rows ?? []);
+    const data = Array.isArray(rows) ? rows : (rows as any).rows ?? [];
+    if (redis) redis.set(cacheKey, JSON.stringify(data), { ex: 300 }).catch(() => {}); // 5 min cache for Neon fallback
+    return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
@@ -825,22 +920,25 @@ app.post("/session/save", requireAuth, async (c) => {
         try { await invalidate(cacheKeys.profile(billingUserId)); } catch (e) {}
         console.log(`[Billing] Deducted $${computedCost.toFixed(6)} from ${billingUserId}. Balance: $${newBalance.toFixed(4)}`);
       }
-
-      try {
-        const transactionRepo = new DrizzleTransactionRepository();
-        await transactionRepo.create({
-          amount: -(computedCost || 0),
-          type:   'usage',
-          status: 'completed',
-          metadata: sessionMeta,
-        });
-      } catch (txErr: any) {
-        console.error("[Billing] Transaction record failed:", txErr.message);
-      }
     }
   } catch (err: any) {
     console.error("[Billing] Failed:", err.message);
   }
+
+  // ── Log to Tinybird (fire-and-forget) ──────────────────────────────────────
+  logSessionToTinybird({
+    id:           crypto.randomUUID(),
+    userId:       billingUserId,
+    service:      service || 'live',
+    model:        model   || 'gemini',
+    inputTokens,
+    outputTokens,
+    totalTokens:  inputTokens + outputTokens,
+    cost:         computedCost,
+    status:       'completed',
+    createdAt:    new Date().toISOString(),
+  });
+  invalidateLogsCache(billingUserId);
 
   if (transcript && transcript.trim().length > 0) {
     try {

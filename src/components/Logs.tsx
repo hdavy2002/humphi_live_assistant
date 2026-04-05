@@ -25,6 +25,28 @@ interface UsageLog {
   created_at: string;
 }
 
+// ── Normalize Tinybird rows (snake_case) → UsageLog shape ───────────
+function normalizeTinybirdRow(row: any): UsageLog {
+  return {
+    id:         row.id,
+    amount:     String(-(row.cost ?? 0)),
+    type:       'usage',
+    status:     row.status ?? 'completed',
+    created_at: row.created_at,
+    metadata: {
+      service:      row.service,
+      model:        row.model,
+      inputTokens:  row.input_tokens  ?? 0,
+      outputTokens: row.output_tokens ?? 0,
+      tokens: {
+        input:  row.input_tokens  ?? 0,
+        output: row.output_tokens ?? 0,
+        total:  row.total_tokens  ?? 0,
+      },
+    },
+  };
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────
 function parseTokens(meta: UsageLog['metadata']) {
   if (!meta) return { input: 0, output: 0, total: 0 };
@@ -77,7 +99,11 @@ const LogsPage: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setLogs(Array.isArray(data) ? data : (data?.rows ?? []));
+        const raw  = Array.isArray(data) ? data : (data?.rows ?? []);
+        // Detect Tinybird rows by snake_case field, normalize to UsageLog shape
+        setLogs(raw.map((r: any) =>
+          r.input_tokens !== undefined ? normalizeTinybirdRow(r) : r
+        ));
       }
     } catch {}
     setLoading(false);
