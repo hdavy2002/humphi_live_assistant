@@ -215,7 +215,8 @@ export default function GeminiLive() {
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [micVolume, setMicVolume] = useState(0);
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0, total: 0 });
-  const tokenUsageRef = useRef({ input: 0, output: 0, total: 0 }); // always-current, avoids stale closure in billing
+  const tokenUsageRef   = useRef({ input: 0, output: 0, total: 0 }); // always-current, avoids stale closure in billing
+  const sessionStartRef = useRef<number | null>(null);                // wall-clock ms when session connected
   const [currentGrantId, setCurrentGrantId] = useState<string | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [videoDevices, setVideoDevices] = useState<AudioDevice[]>([]);
@@ -500,6 +501,7 @@ Identity Rules:
             setIsConnected(true);
             connectedRef.current = true;
             setIsConnecting(false);
+            sessionStartRef.current = Date.now(); // record session start for duration
             addLog('info', `Assistant ${agentName} is online!`);
             
             setIsMicOn(true);
@@ -543,8 +545,11 @@ Identity Rules:
       const token = await getToken();
 
       // Use the ref — always holds the latest usage even if state is stale
-      const finalUsage = tokenUsageRef.current;
-      addLog('info', 'Saving session and processing billing...', { tokens: finalUsage });
+      const finalUsage    = tokenUsageRef.current;
+      const durationSecs  = sessionStartRef.current
+        ? Math.round((Date.now() - sessionStartRef.current) / 1000)
+        : 0;
+      addLog('info', 'Saving session and processing billing...', { tokens: finalUsage, durationSecs });
 
       const res = await fetch('/api/session/save', {
         method: 'POST',
@@ -556,6 +561,7 @@ Identity Rules:
           userId: user.id,
           transcript,
           tokenUsage: finalUsage,
+          durationSecs,
           service: 'live',
           model: MODEL_NAME,
           agentRole,

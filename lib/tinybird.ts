@@ -38,6 +38,7 @@ export const sessionLogs = defineDatasource("session_logs", {
     totalTokens:   t.uint32(),
     cost:          t.float64(),
     status:        t.string().lowCardinality(),  // 'completed' | 'failed'
+    durationSecs:  t.uint32(),                   // session wall-clock duration in seconds
     createdAt:     t.dateTime(),
   },
   engine: engine.mergeTree({
@@ -72,12 +73,13 @@ export const userSessionLogs = defineEndpoint("user_session_logs", {
           userId,
           service,
           model,
-          inputTokens  AS input_tokens,
-          outputTokens AS output_tokens,
-          totalTokens  AS total_tokens,
+          inputTokens   AS input_tokens,
+          outputTokens  AS output_tokens,
+          totalTokens   AS total_tokens,
           cost,
           status,
-          createdAt    AS created_at
+          durationSecs  AS duration_secs,
+          createdAt     AS created_at
         FROM session_logs
         WHERE userId = {{String(userId, '')}}
         {% if String(service, 'all') != 'all' %}
@@ -98,6 +100,7 @@ export const userSessionLogs = defineEndpoint("user_session_logs", {
     total_tokens:  t.uint32(),
     cost:          t.float64(),
     status:        t.string(),
+    duration_secs: t.uint32(),
     created_at:    t.dateTime(),
   },
 });

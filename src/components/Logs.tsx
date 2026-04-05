@@ -14,6 +14,7 @@ interface UsageLog {
   amount: string;
   type: string;
   status: string;
+  duration_secs?: number;
   metadata: {
     service?: string;
     model?: string;
@@ -28,11 +29,12 @@ interface UsageLog {
 // ── Normalize Tinybird rows (snake_case) → UsageLog shape ───────────
 function normalizeTinybirdRow(row: any): UsageLog {
   return {
-    id:         row.id,
-    amount:     String(-(row.cost ?? 0)),
-    type:       'usage',
-    status:     row.status ?? 'completed',
-    created_at: row.created_at,
+    id:           row.id,
+    amount:       String(-(row.cost ?? 0)),
+    type:         'usage',
+    status:       row.status ?? 'completed',
+    created_at:   row.created_at,
+    duration_secs: row.duration_secs ?? 0,
     metadata: {
       service:      row.service,
       model:        row.model,
@@ -45,6 +47,14 @@ function normalizeTinybirdRow(row: any): UsageLog {
       },
     },
   };
+}
+
+function formatDuration(secs: number): string {
+  if (!secs || secs <= 0) return '—';
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -218,12 +228,13 @@ const LogsPage: React.FC = () => {
 
         {/* Column headers */}
         <div className="grid px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest"
-          style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 90px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
+          style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 80px 90px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
           <span>Session</span>
           <span className="text-center">Date &amp; Time</span>
           <span className="text-right">Input</span>
           <span className="text-right">Output</span>
           <span className="text-right">Total</span>
+          <span className="text-right">Duration</span>
           <span className="text-right">Cost</span>
         </div>
 
@@ -248,10 +259,11 @@ const LogsPage: React.FC = () => {
             </div>
           ) : (
             filtered.map((log, i) => {
-              const tokens  = parseTokens(log.metadata);
-              const svc     = friendlyService(log.metadata);
-              const model   = friendlyModel(log.metadata?.model);
-              const cost    = Math.abs(parseFloat(log.amount || '0'));
+              const tokens   = parseTokens(log.metadata);
+              const svc      = friendlyService(log.metadata);
+              const model    = friendlyModel(log.metadata?.model);
+              const cost     = Math.abs(parseFloat(log.amount || '0'));
+              const duration = formatDuration(log.duration_secs ?? 0);
               const { date, time } = formatDate(log.created_at);
 
               return (
@@ -261,7 +273,7 @@ const LogsPage: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   className="grid items-center px-5 py-3.5 hover:bg-black/[0.02] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 90px' }}
+                  style={{ gridTemplateColumns: '1fr 120px 80px 80px 80px 80px 90px' }}
                 >
                   {/* Service + model */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -317,6 +329,11 @@ const LogsPage: React.FC = () => {
                     <span className="text-sm font-bold" style={{ color: '#22C9E8' }}>
                       {tokens.total > 0 ? tokens.total.toLocaleString() : '—'}
                     </span>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-[#0D1117]">{duration}</span>
                   </div>
 
                   {/* Cost */}

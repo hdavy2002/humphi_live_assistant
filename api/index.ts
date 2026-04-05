@@ -80,7 +80,7 @@ function getTb() {
 async function logSessionToTinybird(event: {
   id: string; userId: string; service: string; model: string;
   inputTokens: number; outputTokens: number; totalTokens: number;
-  cost: number; status: string; createdAt: string;
+  cost: number; status: string; durationSecs: number; createdAt: string;
 }): Promise<void> {
   if (!TB_TOKEN) return;
   try {
@@ -563,8 +563,9 @@ app.post("/chat", requireAuth, async (c) => {
           return;
         }
 
-        const reader  = orRes.body!.getReader();
-        const decoder = new TextDecoder();
+        const reader     = orRes.body!.getReader();
+        const decoder    = new TextDecoder();
+        const chatStart  = Date.now();
         let fullContent  = '';
         let inputTokens  = 0;
         let outputTokens = 0;
@@ -630,6 +631,7 @@ app.post("/chat", requireAuth, async (c) => {
           totalTokens:  inputTokens + outputTokens,
           cost,
           status:       'completed',
+          durationSecs: Math.round((Date.now() - chatStart) / 1000),
           createdAt:    new Date().toISOString(),
         });
         invalidateLogsCache(userId);
@@ -858,7 +860,7 @@ app.post("/gemini/token", requireAuth, async (c) => {
 
 app.post("/session/save", requireAuth, async (c) => {
   const serverUserId = getAuth(c)!.userId!;
-  const { userId, newHandle, transcript, tokenUsage, service, model, agentRole, agentName, grantId } = await c.req.json();
+  const { userId, newHandle, transcript, tokenUsage, durationSecs, service, model, agentRole, agentName, grantId } = await c.req.json();
 
   // Enforce server-authoritative userId from JWT — ignore client-supplied one
   if (userId && userId !== serverUserId) return c.json({ error: "Forbidden" }, 403);
@@ -944,6 +946,7 @@ app.post("/session/save", requireAuth, async (c) => {
     totalTokens:  inputTokens + outputTokens,
     cost:         computedCost,
     status:       'completed',
+    durationSecs: Math.max(0, Math.round(durationSecs || 0)),
     createdAt:    new Date().toISOString(),
   });
   invalidateLogsCache(billingUserId);
