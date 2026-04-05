@@ -501,6 +501,7 @@ app.post("/chat", requireAuth, async (c) => {
             model: HUMPHI_CHAT_MODEL,
             messages: openRouterMessages,
             stream: true,
+            stream_options: { include_usage: true },
           }),
         });
 
@@ -791,9 +792,11 @@ app.post("/session/save", requireAuth, async (c) => {
   }
 
   // ── Server-authoritative cost ──────────────────────────────────────────────
-  // Never trust client-supplied cost. Recompute from tokenUsage after grant check.
-  const inputTokens  = grantVerified ? Math.min(tokenUsage?.input  || 0, 10_000_000) : 0;
-  const outputTokens = grantVerified ? Math.min(tokenUsage?.output || 0, 10_000_000) : 0;
+  // Always compute cost from tokenUsage — capped to prevent abuse.
+  // grantVerified only gates whether the session counter was properly managed;
+  // billing should never be silently zeroed by a Redis miss.
+  const inputTokens  = Math.min(tokenUsage?.input  || 0, 10_000_000);
+  const outputTokens = Math.min(tokenUsage?.output || 0, 10_000_000);
   const computedCost = (inputTokens * LIVE_INPUT_COST) + (outputTokens * LIVE_OUTPUT_COST);
 
   const sessionMeta = {

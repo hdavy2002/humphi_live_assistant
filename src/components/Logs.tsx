@@ -131,7 +131,7 @@ const LogsPage: React.FC = () => {
           },
           {
             label: 'Total Spent',
-            value: `$${stats.totalCost.toFixed(4)}`,
+            value: `$${stats.totalCost.toFixed(6)}`,
             icon: DollarSign,
             bg: '#FF6619',
             color: '#ffffff',
@@ -197,7 +197,7 @@ const LogsPage: React.FC = () => {
           <span className="text-center">Date &amp; Time</span>
           <span className="text-right">Input</span>
           <span className="text-right">Output</span>
-          <span className="text-right">Total tok</span>
+          <span className="text-right">Total</span>
           <span className="text-right">Cost</span>
         </div>
 
@@ -299,7 +299,7 @@ const LogsPage: React.FC = () => {
                       className="text-sm font-black"
                       style={{ color: cost > 0 ? '#FF6619' : 'rgba(0,0,0,0.25)' }}
                     >
-                      {cost > 0 ? `-$${cost.toFixed(4)}` : '$0.00'}
+                      {cost > 0 ? `-$${cost.toFixed(6)}` : '$0.000000'}
                     </span>
                   </div>
                 </motion.div>
@@ -315,7 +315,7 @@ const LogsPage: React.FC = () => {
               {filtered.length} session{filtered.length !== 1 ? 's' : ''} shown
             </span>
             <span className="text-[11px] font-black" style={{ color: '#FF6619' }}>
-              Total charged: ${stats.totalCost.toFixed(4)}
+              Total charged: ${stats.totalCost.toFixed(6)}
             </span>
           </div>
         )}
