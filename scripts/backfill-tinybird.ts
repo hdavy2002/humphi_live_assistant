@@ -12,7 +12,7 @@ dotenv.config({ path: '.env.local' });
 
 import { neon } from '@neondatabase/serverless';
 
-const TINYBIRD_API_KEY = process.env.TINYBIRD_API_KEY || '';
+const TINYBIRD_API_KEY = process.env.TINYBIRD_TOKEN || process.env.TINYBIRD_API_KEY || '';
 const DATABASE_URL     = process.env.DATABASE_URL || '';
 
 if (!TINYBIRD_API_KEY) { console.error('Missing TINYBIRD_API_KEY'); process.exit(1); }
@@ -56,7 +56,8 @@ async function main() {
     });
   }).join('\n');
 
-  const res = await fetch('https://api.tinybird.co/v0/events?name=session_logs', {
+  const tbUrl = process.env.TINYBIRD_URL || 'https://api.europe-west2.gcp.tinybird.co';
+  const res = await fetch(`${tbUrl}/v0/events?name=session_logs`, {
     method:  'POST',
     headers: {
       'Authorization': `Bearer ${TINYBIRD_API_KEY}`,

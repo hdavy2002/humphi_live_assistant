@@ -52,35 +52,43 @@ const sessionGrantKey = (gid: string) => `gemini:grant:${gid}`;
 const LIVE_INPUT_COST  = 0.000001;  // $1 / 1M input tokens
 const LIVE_OUTPUT_COST = 0.000004;  // $4 / 1M output tokens
 
-// ── Tinybird ──────────────────────────────────────────────────────────────────
-const TINYBIRD_API_KEY = (process.env.TINYBIRD_API_KEY || '').trim();
-const TINYBIRD_BASE    = 'https://api.tinybird.co';
+// ── Tinybird (SDK) ────────────────────────────────────────────────────────────
+import { tinybird } from '../lib/tinybird.js';
+
+const TB_TOKEN          = (process.env.TINYBIRD_TOKEN || process.env.TINYBIRD_API_KEY || '').trim();
+const TB_URL            = (process.env.TINYBIRD_URL   || 'https://api.europe-west2.gcp.tinybird.co').trim();
 const TB_LOGS_CACHE_TTL = 7200; // 2 hours
 
-interface TinybirdSessionEvent {
-  id:           string;
-  userId:       string;
-  service:      string;
-  model:        string;
-  inputTokens:  number;
-  outputTokens: number;
-  totalTokens:  number;
-  cost:         number;
-  status:       string;
-  createdAt:    string;
+// Lazy SDK client — created once, reused across warm invocations
+let tb: typeof tinybird | null = null;
+function getTb() {
+  if (!TB_TOKEN) return null;
+  if (!tb) {
+    const { Tinybird } = require('@tinybirdco/sdk');
+    const { tinybird: tbInstance } = require('../lib/tinybird.js');
+    // Re-init with runtime credentials
+    const { sessionLogs, userSessionLogs } = require('../lib/tinybird.js');
+    const T = new Tinybird({ datasources: { sessionLogs }, pipes: { userSessionLogs } });
+    T.setToken(TB_TOKEN);
+    T.setBaseUrl(TB_URL);
+    tb = T;
+  }
+  return tb;
 }
 
 // Fire-and-forget — never blocks the response, never throws
-async function logSessionToTinybird(event: TinybirdSessionEvent): Promise<void> {
-  if (!TINYBIRD_API_KEY) return;
+async function logSessionToTinybird(event: {
+  id: string; userId: string; service: string; model: string;
+  inputTokens: number; outputTokens: number; totalTokens: number;
+  cost: number; status: string; createdAt: string;
+}): Promise<void> {
+  if (!TB_TOKEN) return;
   try {
-    await fetch(`${TINYBIRD_BASE}/v0/events?name=session_logs`, {
+    // Use raw Events API — SDK ingest is async-safe and non-blocking
+    await fetch(`${TB_URL}/v0/events?name=session_logs&token=${TB_TOKEN}`, {
       method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${TINYBIRD_API_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify(event),
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(event),
     });
   } catch (err) {
     console.error('[Tinybird] Ingest failed (non-fatal):', err);
@@ -732,17 +740,17 @@ app.get("/usage/logs", requireAuth, async (c) => {
     } catch {}
   }
 
-  // ── 2. Tinybird (primary store) ────────────────────────────────
-  if (TINYBIRD_API_KEY) {
+  // ── 2. Tinybird via SDK pipe (primary store) ───────────────────
+  if (TB_TOKEN) {
     try {
       const params = new URLSearchParams({
-        token:  TINYBIRD_API_KEY,
+        token:  TB_TOKEN,
         userId,
         limit:  '200',
         ...(service !== 'all' ? { service } : {}),
       });
       const tbRes = await fetch(
-        `${TINYBIRD_BASE}/v0/pipes/user_session_logs.json?${params}`
+        `${TB_URL}/v0/pipes/user_session_logs.json?${params}`
       );
       if (tbRes.ok) {
         const tbData = await tbRes.json();
