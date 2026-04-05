@@ -49,8 +49,12 @@ if (process.env.MEM0_API_KEY) {
 // ── Gemini Live session helpers ───────────────────────────────────────────────
 const sessionCountKey = (uid: string) => `gemini:sessions:active:${uid}`;
 const sessionGrantKey = (gid: string) => `gemini:grant:${gid}`;
-const LIVE_INPUT_COST  = 0.000001;  // $1 / 1M input tokens
-const LIVE_OUTPUT_COST = 0.000004;  // $4 / 1M output tokens
+// ── Gemini Live pricing: Google published rates × 5 (your margin) ─────────────
+// Google:  Audio input $3.00/M | Video input $3.00/M | Audio output $12.00/M
+// Charged: Audio input $15.00/M | Video input $15.00/M | Audio output $60.00/M
+const LIVE_AUDIO_INPUT_COST  = 0.000015;  // $15.00 / 1M audio input tokens
+const LIVE_VIDEO_INPUT_COST  = 0.000015;  // $15.00 / 1M video input tokens
+const LIVE_AUDIO_OUTPUT_COST = 0.000060;  // $60.00 / 1M audio output tokens
 
 // ── Tinybird (SDK) ────────────────────────────────────────────────────────────
 import { tinybird } from '../lib/tinybird.js';
@@ -928,7 +932,9 @@ app.post("/session/save", requireAuth, async (c) => {
   if (inputTokens === 0 && (!service || service === 'live')) {
     inputTokens = Math.min(audioTokens + videoTokens, 10_000_000);
   }
-  const computedCost = (inputTokens * LIVE_INPUT_COST) + (outputTokens * LIVE_OUTPUT_COST);
+  const computedCost = (audioTokens  * LIVE_AUDIO_INPUT_COST)
+                     + (videoTokens  * LIVE_VIDEO_INPUT_COST)
+                     + (outputTokens * LIVE_AUDIO_OUTPUT_COST);
 
   const sessionMeta = {
     userId: billingUserId,

@@ -232,12 +232,12 @@ const LogsPage: React.FC = () => {
 
         {/* Column headers */}
         <div className="grid px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest"
-          style={{ gridTemplateColumns: '1fr 115px 82px 80px 72px 72px 75px 88px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
+          style={{ gridTemplateColumns: '1fr 115px 82px 82px 80px 72px 75px 88px', color: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#FAFAFA' }}>
           <span>HumPhi Live</span>
           <span className="text-center">Date &amp; Time</span>
-          <span className="text-right">Audio Tokens</span>
-          <span className="text-right">Video Tokens</span>
-          <span className="text-right">Output</span>
+          <span className="text-right">Audio In</span>
+          <span className="text-right">Audio Out</span>
+          <span className="text-right">Video In</span>
           <span className="text-right">Total</span>
           <span className="text-right">Duration</span>
           <span className="text-right">Cost</span>
@@ -284,7 +284,7 @@ const LogsPage: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   className="grid items-center px-5 py-3.5 hover:bg-black/[0.02] transition-colors"
-                  style={{ gridTemplateColumns: '1fr 115px 82px 80px 72px 72px 75px 88px' }}
+                  style={{ gridTemplateColumns: '1fr 115px 82px 82px 80px 72px 75px 88px' }}
                 >
                   {/* Service + model */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -336,28 +336,30 @@ const LogsPage: React.FC = () => {
                     <p className="text-[10px] mt-0.5" style={{ color: 'rgba(0,0,0,0.35)' }}>{time}</p>
                   </div>
 
-                  {/* Audio tokens */}
+                  {/* Audio Input tokens */}
                   <div className="text-right">
-                    <span className="text-sm font-bold" style={{ color: audioTokens > 0 ? '#0D1117' : 'rgba(0,0,0,0.25)' }}>
+                    <span className="text-sm font-bold" style={{ color: audioTokens > 0 ? '#FF6619' : 'rgba(0,0,0,0.25)' }}>
                       {audioTokens > 0 ? audioTokens.toLocaleString() : '—'}
                     </span>
                   </div>
 
-                  {/* Video tokens */}
+                  {/* Audio Output tokens */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold" style={{ color: tokens.output > 0 ? '#22C9E8' : 'rgba(0,0,0,0.25)' }}>
+                      {tokens.output > 0 ? tokens.output.toLocaleString() : '—'}
+                    </span>
+                  </div>
+
+                  {/* Video Input tokens */}
                   <div className="text-right">
                     <span className="text-sm font-bold" style={{ color: videoTokens > 0 ? '#7c3aed' : 'rgba(0,0,0,0.25)' }}>
                       {videoTokens > 0 ? videoTokens.toLocaleString() : '—'}
                     </span>
                   </div>
 
-                  {/* Output tokens */}
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-[#0D1117]">{tokens.output > 0 ? tokens.output.toLocaleString() : '—'}</span>
-                  </div>
-
                   {/* Total tokens */}
                   <div className="text-right">
-                    <span className="text-sm font-bold" style={{ color: '#22C9E8' }}>
+                    <span className="text-sm font-bold" style={{ color: '#0D1117' }}>
                       {tokens.total > 0 ? tokens.total.toLocaleString() : '—'}
                     </span>
                   </div>
