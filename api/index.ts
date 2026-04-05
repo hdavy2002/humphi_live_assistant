@@ -582,9 +582,17 @@ app.post("/chat", requireAuth, async (c) => {
               const parsed = JSON.parse(payload);
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) { fullContent += delta; send(JSON.stringify({ type: 'delta', content: delta })); }
+              // OpenRouter may use prompt_tokens/completion_tokens (OpenAI style)
+              // or input_tokens/output_tokens (Anthropic style) — try both
               if (parsed.usage) {
-                inputTokens  = parsed.usage.prompt_tokens || 0;
-                outputTokens = parsed.usage.completion_tokens || 0;
+                inputTokens  = parsed.usage.prompt_tokens  || parsed.usage.input_tokens  || inputTokens;
+                outputTokens = parsed.usage.completion_tokens || parsed.usage.output_tokens || outputTokens;
+              }
+              // Some models embed usage inside choices[0] as well
+              const choiceUsage = parsed.choices?.[0]?.usage;
+              if (choiceUsage) {
+                inputTokens  = choiceUsage.prompt_tokens  || choiceUsage.input_tokens  || inputTokens;
+                outputTokens = choiceUsage.completion_tokens || choiceUsage.output_tokens || outputTokens;
               }
             } catch {}
           }
@@ -900,8 +908,14 @@ app.post("/session/save", requireAuth, async (c) => {
   // Always compute cost from tokenUsage — capped to prevent abuse.
   // grantVerified only gates whether the session counter was properly managed;
   // billing should never be silently zeroed by a Redis miss.
-  const inputTokens  = Math.min(tokenUsage?.input  || 0, 10_000_000);
+  let inputTokens  = Math.min(tokenUsage?.input  || 0, 10_000_000);
   const outputTokens = Math.min(tokenUsage?.output || 0, 10_000_000);
+  // Gemini Live API does not report promptTokenCount for audio streams.
+  // Estimate audio input at 32 tokens/second (per Google's published rate).
+  if (inputTokens === 0 && durationSecs > 0 && (!service || service === 'live')) {
+    inputTokens = Math.min(Math.round(durationSecs * 32), 10_000_000);
+    console.log(`[SessionSave] Estimating ${inputTokens} audio input tokens from ${durationSecs}s duration`);
+  }
   const computedCost = (inputTokens * LIVE_INPUT_COST) + (outputTokens * LIVE_OUTPUT_COST);
 
   const sessionMeta = {
